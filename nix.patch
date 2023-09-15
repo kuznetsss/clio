@@ -1,0 +1,224 @@
+diff --git a/external/nix/cassandra_cpp_driver.nix b/external/nix/cassandra_cpp_driver.nix
+new file mode 100644
+index 0000000..2e0f70f
+--- /dev/null
++++ b/external/nix/cassandra_cpp_driver.nix
+@@ -0,0 +1,40 @@
++{ fetchFromGitHub
++, lib
++, stdenv
++, cmake
++, zlib
++, libuv
++, openssl
++, pkg-config
++, examples ? false
++}: stdenv.mkDerivation rec {
++    pname = "cassandra-cpp-driver";
++    version = "2.17.0";
++
++    src = fetchFromGitHub {
++      owner = "datastax";
++      repo = "cpp-driver";
++      rev = "refs/tags/${version}";
++      sha256 = "sha256-sLKLaBFnGq3NIQV7Tz5aAfsL+LeLw8XDbcJt//H468k=";
++    };
++
++    nativeBuildInputs = [ cmake pkg-config ];
++    buildInputs = [ zlib libuv openssl.dev ];
++
++    cmakeFlags = (lib.attrsets.mapAttrsToList
++      (name: value: "-DCASS_BUILD_${name}:BOOL=${if value then "ON" else "OFF"}") {
++        EXAMPLES = examples;
++      }) ++ [ "-DLIBUV_INCLUDE_DIR=${lib.getDev libuv}/include" ];
++
++    meta = with lib; {
++      description = "DataStax CPP cassandra driver";
++      longDescription = ''
++        A modern, feature-rich and highly tunable C/C++ client
++        library for Apache Cassandra 2.1+ using exclusively Cassandra’s
++        binary protocol and Cassandra Query Language v3.
++      '';
++      license = with licenses; [ asl20 ];
++      homepage = "https://docs.datastax.com/en/developer/cpp-driver/";
++      maintainers = [ maintainers.npatsakula ];
++    };
++}
+diff --git a/external/nix/shell.nix b/external/nix/shell.nix
+new file mode 100644
+index 0000000..32a3ae3
+--- /dev/null
++++ b/external/nix/shell.nix
+@@ -0,0 +1,18 @@
++{pkgs}:
++let
++  # xrpl = pkgs.callPackage ./xrpl.nix { };
++  cassandra_cpp_driver_build = pkgs.callPackage ./cassandra_cpp_driver.nix { };
++in
++  pkgs.mkShell {
++    packages = with pkgs; [
++        python3Full
++        cmake
++        clang-tools_16
++        llvmPackages_14.libcxxClang
++    # dependencies
++        boost182
++        cassandra_cpp_driver_build
++        fmt
++        openssl_1_1
++    ];
++  }
+diff --git a/external/nix/xrpl.nix b/external/nix/xrpl.nix
+new file mode 100644
+index 0000000..6eb4d16
+--- /dev/null
++++ b/external/nix/xrpl.nix
+@@ -0,0 +1,23 @@
++{
++  stdenv,
++  fetchFromGitHub,
++}: stdenv.mkDerivation rec {
++    pname = "xrpl";
++    version = "1.12.0";
++
++    src = fetchFromGitHub {
++      owner = "XRPLF";
++      repo = "rippled";
++      rev = "refs/tags/${version}";
++      sha256 = "sha256-sLKLaBFnGq3NIQV7Tz5aAfsL+LeLw8XDbcJt//H468k=";
++    };
++
++    nativeBuildInputs = [ cmake ];
++    buildInputs = [
++        boost182
++        howard-hinnant-date
++        grpc
++        libarchive
++
++    ];
++}
+diff --git a/flake.lock b/flake.lock
+new file mode 100644
+index 0000000..660b9d1
+--- /dev/null
++++ b/flake.lock
+@@ -0,0 +1,78 @@
++{
++  "nodes": {
++    "flake-utils": {
++      "inputs": {
++        "systems": "systems"
++      },
++      "locked": {
++        "lastModified": 1694529238,
++        "narHash": "sha256-zsNZZGTGnMOf9YpHKJqMSsa0dXbfmxeoJ7xHlrt+xmY=",
++        "owner": "numtide",
++        "repo": "flake-utils",
++        "rev": "ff7b65b44d01cf9ba6a71320833626af21126384",
++        "type": "github"
++      },
++      "original": {
++        "owner": "numtide",
++        "repo": "flake-utils",
++        "type": "github"
++      }
++    },
++    "nixpkgs": {
++      "locked": {
++        "lastModified": 1694680026,
++        "narHash": "sha256-Q7fszWVjRdAGbbk1KH/xdG8hLQ4i5yiA0Lb7LJ8bydg=",
++        "owner": "NixOS",
++        "repo": "nixpkgs",
++        "rev": "2885d712a1993a223ee411c7045dac679cc93b65",
++        "type": "github"
++      },
++      "original": {
++        "owner": "NixOS",
++        "ref": "release-23.05",
++        "repo": "nixpkgs",
++        "type": "github"
++      }
++    },
++    "nixpkgs_old": {
++      "locked": {
++        "lastModified": 1690662844,
++        "narHash": "sha256-NM8yHPIe/LFrwfxaWEVyiHEgexDR4t+yqJ+txhwuB+Y=",
++        "owner": "NixOS",
++        "repo": "nixpkgs",
++        "rev": "50a7139fbd1acd4a3d4cfa695e694c529dd26f3a",
++        "type": "github"
++      },
++      "original": {
++        "owner": "NixOS",
++        "repo": "nixpkgs",
++        "rev": "50a7139fbd1acd4a3d4cfa695e694c529dd26f3a",
++        "type": "github"
++      }
++    },
++    "root": {
++      "inputs": {
++        "flake-utils": "flake-utils",
++        "nixpkgs": "nixpkgs",
++        "nixpkgs_old": "nixpkgs_old"
++      }
++    },
++    "systems": {
++      "locked": {
++        "lastModified": 1681028828,
++        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
++        "owner": "nix-systems",
++        "repo": "default",
++        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
++        "type": "github"
++      },
++      "original": {
++        "owner": "nix-systems",
++        "repo": "default",
++        "type": "github"
++      }
++    }
++  },
++  "root": "root",
++  "version": 7
++}
+diff --git a/flake.nix b/flake.nix
+new file mode 100644
+index 0000000..7e2384c
+--- /dev/null
++++ b/flake.nix
+@@ -0,0 +1,35 @@
++{
++  description = "Clio";
++
++  inputs = {
++    nixpkgs.url = "github:NixOS/nixpkgs/release-23.05";
++    flake-utils.url = "github:numtide/flake-utils";
++    nixpkgs_for_fmt.url = "github:NixOS/nixpkgs/50a7139fbd1acd4a3d4cfa695e694c529dd26f3a";
++    # grpc 1.51.1
++    nixpkgs_for_grpc.url = "github:NixOS/nixpkgs/8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
++    nixpkgs_for_lz4.url = "github:NixOS/nixpkgs/7cf5ccf1cdb2ba5f08f0ac29fc3d04b0b59a07e4";
++  };
++
++  outputs = { self, nixpkgs, nixpkgs_for_fmt, nixpkgs_for_grpc, nixpkgs_for_lz4, flake-utils }:
++    flake-utils.lib.eachDefaultSystem (
++    system:
++        let
++            pkgs = import nixpkgs {
++                inherit system;
++                config.permittedInsecurePackages = [
++                    "openssl-1.1.1v"
++                ];
++                overlays = [
++                    (self: super: {
++                        fmt = nixpkgs_for_fmt.legacyPackages.${system}.fmt;
++                        grpc = nixpkgs_for_grpc.legacyPackages.${system}.grpc;
++                        lz4 = nixpkgs_for_lz4.legacyPackages.${system}.lz4;
++                    })
++            ];
++            };
++        in
++        {
++          devShells.default = pkgs.callPackage ./external/nix/shell.nix { inherit pkgs; };
++        }
++      );
++}
