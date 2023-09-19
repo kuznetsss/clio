@@ -14,6 +14,7 @@
     flake-utils.lib.eachDefaultSystem (
     system:
         let
+            compiler_environment = pkgs.llvmPackages_14.libcxxStdenv;
             pkgs = import nixpkgs {
                 inherit system;
                 config.permittedInsecurePackages = [
@@ -36,7 +37,8 @@
             };
         in
         {
-          devShells.default = pkgs.callPackage ./external/nix/shell.nix { inherit pkgs; };
+          devShells.default = pkgs.callPackage ./external/nix/shell.nix { inherit compiler_environment; };
+          packages.xrpl = pkgs.callPackage ./external/nix/xrpl.nix { inherit compiler_environment; };
         }
       );
 }

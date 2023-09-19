@@ -1,6 +1,5 @@
-{pkgs}:
+{pkgs, compiler_environment}:
 let
-  compiler_environment = pkgs.llvmPackages_14.libcxxStdenv;
   xrpl = pkgs.callPackage ./xrpl.nix { inherit compiler_environment; };
   cassandra_cpp_driver_build = pkgs.callPackage ./cassandra_cpp_driver.nix { };
 in

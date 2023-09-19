@@ -1,13 +1,11 @@
 {
   compiler_environment,
   fetchFromGitHub,
-  cmake, pkg-config,
+  cmake, pkg-config, git,
   boost182,
   howard-hinnant-date,
-  git,
   grpc,
   libarchive,
-  libuv,
   lz4,
   openssl_1_1,
   protobuf3_21,
@@ -43,7 +41,6 @@ in compiler_environment.mkDerivation rec {
     nativeBuildInputs = [ cmake pkg-config git ];
     buildInpus = [
         lz4
-        libuv
         boost182
         boost182.dev
         howard-hinnant-date
