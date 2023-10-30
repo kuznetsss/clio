@@ -28,7 +28,7 @@ namespace util::prometheus {
 
 class PrometheusInterface {
 public:
-    PrometheusInterface(bool isEnabled) : isEnabled_(isEnabled)
+    PrometheusInterface(bool isEnabled, bool compressReply) : isEnabled_(isEnabled), compressReply_(compressReply)
     {
     }
 
@@ -93,8 +93,20 @@ public:
         return isEnabled_;
     }
 
+    /**
+     * @brief Whether to compress the reply
+     *
+     * @return true if the reply should be compressed
+     */
+    bool
+    compressReply() const
+    {
+        return compressReply_;
+    }
+
 private:
     bool isEnabled_;
+    bool compressReply_;
 };
 
 /**
@@ -131,25 +143,14 @@ private:
 
 class PrometheusSingleton {
 public:
-    void static init(Config const& config = Config{})
-    {
-        bool const enabled = config.valueOr("prometheus_enabled", true);
-        instance_ = std::make_unique<PrometheusImpl>(enabled);
-    }
+    void static init(Config const& config = Config{});
 
     static PrometheusInterface&
-    instance()
-    {
-        assert(instance_);
-        return *instance_;
-    }
+    instance();
 
     // Be careful with this method because there could be hanging references to counters
     static void
-    replaceInstance(std::unique_ptr<PrometheusInterface> instance)
-    {
-        instance_ = std::move(instance);
-    }
+    replaceInstance(std::unique_ptr<PrometheusInterface> instance);
 
 private:
     static std::unique_ptr<PrometheusInterface> instance_;

@@ -99,6 +99,28 @@ PrometheusImpl::getMetric(
     return it->second.getMetric(std::move(labels));
 }
 
+void
+PrometheusSingleton::init(Config const& config)
+{
+    bool const enabled = config.valueOr("prometheus.enabled", true);
+    bool const compressReply = config.valueOr("prometheus.compress_reply", true);
+
+    instance_ = std::make_unique<PrometheusImpl>(enabled, compressReply);
+}
+
+PrometheusInterface&
+PrometheusSingleton::instance()
+{
+    assert(instance_);
+    return *instance_;
+}
+
+void
+PrometheusSingleton::replaceInstance(std::unique_ptr<PrometheusInterface> instance)
+{
+    instance_ = std::move(instance);
+}
+
 std::unique_ptr<PrometheusInterface> PrometheusSingleton::instance_;
 
 }  // namespace util::prometheus
