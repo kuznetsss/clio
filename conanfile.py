@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 
 
 class Clio(ConanFile):
@@ -11,12 +11,9 @@ class Clio(ConanFile):
     settings = 'os', 'compiler', 'build_type', 'arch'
     options = {
         'fPIC': [True, False],
-        'verbose': [True, False],
-        'tests': [True, False],     # build unit tests; create `clio_tests` binary
         'benchmark': [True, False], # build benchmarks; create `clio_benchmarks` binary
         'docs': [True, False],      # doxygen API docs; create custom target 'docs'
         'packaging': [True, False], # create distribution packages
-        'coverage': [True, False],  # build for test coverage report; create custom target `clio_tests-ccov`
         'lint': [True, False],      # run clang-tidy checks during compilation
     }
 
@@ -28,19 +25,17 @@ class Clio(ConanFile):
         'grpc/1.50.1',
         'openssl/1.1.1u',
         'xrpl/2.2.0-b1',
-        'libbacktrace/cci.20210118'
+        'libbacktrace/cci.20210118',
+        'gtest/1.14.0'
     ]
 
     default_options = {
         'fPIC': True,
-        'verbose': False,
-        'tests': False,
         'benchmark': False,
         'packaging': False,
-        'coverage': False,
         'lint': False,
         'docs': False,
-        
+
         'xrpl/*:tests': False,
         'cassandra-cpp-driver/*:shared': False,
         'date/*:header_only': True,
@@ -60,8 +55,7 @@ class Clio(ConanFile):
     )
 
     def requirements(self):
-        if self.options.tests:
-            self.requires('gtest/1.14.0')
+        print(vars(self.settings))
         if self.options.benchmark:
             self.requires('benchmark/1.8.3')
 
@@ -78,9 +72,6 @@ class Clio(ConanFile):
     generators = 'CMakeDeps'
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.variables['verbose'] = self.options.verbose
-        tc.variables['tests'] = self.options.tests
-        tc.variables['coverage'] = self.options.coverage
         tc.variables['lint'] = self.options.lint
         tc.variables['docs'] = self.options.docs
         tc.variables['packaging'] = self.options.packaging

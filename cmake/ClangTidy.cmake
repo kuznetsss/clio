@@ -1,5 +1,4 @@
 if (lint)
-
   # Find clang-tidy binary
   if (DEFINED ENV{CLIO_CLANG_TIDY_BIN})
     set(_CLANG_TIDY_BIN $ENV{CLIO_CLANG_TIDY_BIN})
