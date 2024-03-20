@@ -29,13 +29,11 @@
  * Clio can be configured to store data in  <A HREF="https://cassandra.apache.org/_/index.html">Apache Cassandra</A> or <A HREF="https://www.scylladb.com/">ScyllaDB</A>, enabling scalable read throughput.
  * Multiple Clio nodes can share access to the same dataset, which allows for a highly available cluster of Clio nodes without the need for redundant data storage or computation.
  *
- * You can read more general information about Clio and its subsystems from the `Related Pages` section.
- *
  * @section Develop
  *
  * As you prepare to develop code for Clio, please be sure you are aware of our current
  * <A HREF="https://github.com/XRPLF/clio/blob/develop/CONTRIBUTING.md">Contribution guidelines</A>.
  *
- * Read <A HREF="https://github.com/XRPLF/clio/blob/develop/src/rpc/README.md">rpc/README.md</A> carefully to know more about writing your own handlers for
+ * Read [rpc/README.md](../rpc/README.md) carefully to know more about writing your own handlers for
  * Clio.
  */

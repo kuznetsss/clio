@@ -14,7 +14,7 @@ See the [common](https://github.com/XRPLF/clio/blob/develop/src/rpc/common) subf
 
 See [unittests/rpc](https://github.com/XRPLF/clio/tree/develop/unittests/rpc) for examples.
 
-Handlers need to fulfil the requirements specified by the `SomeHandler` concept (see `rpc/common/Concepts.h`):
+Handlers need to fulfil the requirements specified by the `SomeHandler` concept (see `rpc/common/Concepts.hpp`):
 
 - Expose types:
   

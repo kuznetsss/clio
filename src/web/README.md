@@ -10,6 +10,6 @@ The web server subsystem:
 
 - Handles all types of requests on a single port.
 
-Each request is handled asynchronously using [Boost Asio](https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio.html).
+Each request is handled asynchronously using [Boost Asio](https://www.boost.org/doc/libs/1_82_0/doc/html/boost_asio.html).
 
 Much of this code was originally copied from Boost beast example code.
