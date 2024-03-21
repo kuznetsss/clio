@@ -93,8 +93,22 @@ struct Required final {
     verify(boost::json::value const& value, std::string_view key);
 };
 
+/**
+ * @brief A validator that forbids a field to be present.
+ *
+ * If there is a value provided, it will forbid the field only when the value equals.
+ * If there is no value provided, it will forbid the field when the field shows up.
+ */
 template <typename... T>
-using NotSupported = impl::BadField<impl::NotSupportedErrorStrategy, T...>;
+struct NotSupported : impl::BadField<impl::NotSupportedErrorStrategy, T...> {
+    using impl::BadField<impl::NotSupportedErrorStrategy, T...>::BadField;
+};
+
+/**
+ * @brief Deduction guide to avoid having to specify the template arguments.
+ */
+template <typename... T>
+NotSupported(T...) -> NotSupported<T...>;
 
 /**
  * @brief Validates that the type of the value is one of the given types.

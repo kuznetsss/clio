@@ -45,6 +45,7 @@ target_sources(
           Main.cpp
           Playground.cpp
           ProfilerTests.cpp
+          rpc/common/ValidatorsTests.cpp
           rpc/AmendmentsTests.cpp
           rpc/APIVersionTests.cpp
           rpc/BaseTests.cpp

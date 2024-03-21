@@ -35,6 +35,7 @@ namespace rpc::validation::impl {
  *
  * If there is a value provided, it will forbid the field only when the value equals.
  * If there is no value provided, it will forbid the field when the field shows up.
+ * It uses the ErrorStrategy to create the error message.
  */
 template <typename ErrorStrategy, typename... T>
 class BadField;
@@ -43,7 +44,7 @@ class BadField;
  * @brief A specialized BadField validator that forbids a field to be present when the value equals the given value.
  */
 template <typename ErrorStrategy, typename T>
-class BadField<ErrorStrategy, T> final {
+class BadField<ErrorStrategy, T> {
     T value_;
 
 public:
@@ -69,13 +70,8 @@ public:
         if (value.is_object() and value.as_object().contains(key.data())) {
             using boost::json::value_to;
             auto const res = value_to<T>(value.as_object().at(key.data()));
-            if (value_ == res) {
+            if (value_ == res)
                 return ErrorStrategy::makeError(key, res);
-                // return Error{Status{
-                //     RippledError::rpcNOT_SUPPORTED,
-                //     fmt::format("Not supported field '{}'s value '{}'", std::string{key}, res)
-                // }};
-            }
         }
         return {};
     }
@@ -85,7 +81,7 @@ public:
  * @brief A specialized BadField validator that forbids a field to be present.
  */
 template <typename ErrorStrategy>
-class BadField<ErrorStrategy> final {
+class BadField<ErrorStrategy> {
 public:
     /**
      * @brief Verify whether the field is supported or not.
@@ -99,17 +95,10 @@ public:
     {
         if (value.is_object() and value.as_object().contains(key))
             return ErrorStrategy::makeError(key);
-        // return Error{Status{RippledError::rpcNOT_SUPPORTED, "Not supported field '" + std::string{key}}};
 
         return {};
     }
 };
-
-/**
- * @brief Deduction guide to avoid having to specify the template arguments.
- */
-template <typename ErrorStrategy, typename... T>
-BadField<ErrorStrategy>(T&&... t)->BadField<ErrorStrategy, T...>;
 
 struct NotSupportedErrorStrategy {
     static MaybeError
