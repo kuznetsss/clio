@@ -90,7 +90,7 @@ public:
                     case rpc::ClioError::rpcINVALID_HOT_WALLET:
                     case rpc::ClioError::rpcFIELD_NOT_FOUND_TRANSACTION:
                         ASSERT(
-                            false, "Unknown rpc error code {}", static_cast<int>(*clioCode)
+                            false, "Unexpected rpc error code {}", static_cast<int>(*clioCode)
                         );  // this should never happen
                         break;
                 }

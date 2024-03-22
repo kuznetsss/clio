@@ -63,3 +63,36 @@ TEST(NotSupportedTests, CheckValue)
     json.at("field2") = 456;
     EXPECT_TRUE(notSupported.verify(json, "field2"));
 }
+
+TEST(DeprecatedTests, CheckField)
+{
+    Deprecated deprecated;
+
+    boost::json::value const json{
+        {"field1", "value1"},
+        {"field2", 123},
+    };
+    auto const result = deprecated.verify(json, "field1");
+    ASSERT_FALSE(result);
+
+    EXPECT_FALSE(deprecated.verify(json, "field2"));
+    EXPECT_TRUE(deprecated.verify(json, "field3"));
+}
+
+TEST(DeprecatedTests, CheckValue)
+{
+    Deprecated deprecated{123};
+    boost::json::value json{
+        {"field1", "value1"},
+        {"field2", 123},
+    };
+    EXPECT_THROW({ [[maybe_unused]] auto const r = deprecated.verify(json, "field1"); }, std::exception);
+
+    auto const result = deprecated.verify(json, "field2");
+    ASSERT_FALSE(result);
+
+    EXPECT_TRUE(deprecated.verify(json, "field3"));
+
+    json.at("field2") = 456;
+    EXPECT_TRUE(deprecated.verify(json, "field2"));
+}

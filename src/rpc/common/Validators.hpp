@@ -111,6 +111,24 @@ template <typename... T>
 NotSupported(T...) -> NotSupported<T...>;
 
 /**
+ * @brief A validator that forbids a field to be present.
+ * @note It works the same as NotSupported, but uses a different error.
+ *
+ * If there is a value provided, it will forbid the field only when the value equals.
+ * If there is no value provided, it will forbid the field when the field shows up.
+ */
+template <typename... T>
+struct Deprecated : impl::BadField<impl::DeprecatedErrorStrategy, T...> {
+    using impl::BadField<impl::DeprecatedErrorStrategy, T...>::BadField;
+};
+
+/**
+ * @brief Deduction guide to avoid having to specify the template arguments.
+ */
+template <typename... T>
+Deprecated(T...) -> Deprecated<T...>;
+
+/**
  * @brief Validates that the type of the value is one of the given types.
  */
 template <typename... Types>

@@ -22,11 +22,16 @@
 #include "rpc/Errors.hpp"
 #include "rpc/common/Types.hpp"
 
+#include <boost/json/object.hpp>
 #include <boost/json/value.hpp>
+#include <fmt/core.h>
 #include <ripple/protocol/ErrorCodes.h>
 
+#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
 
 namespace rpc::validation::impl {
 
@@ -48,6 +53,8 @@ class BadField<ErrorStrategy, T> {
     T value_;
 
 public:
+    using ReturnType = decltype(ErrorStrategy::makeError(std::declval<std::string_view>(), std::declval<T>()));
+
     /**
      * @brief Constructs a new BadField validator.
      *
@@ -62,9 +69,9 @@ public:
      *
      * @param value The JSON value representing the outer object
      * @param key The key used to retrieve the tested value from the outer object
-     * @return `RippledError::rpcNOT_SUPPORTED` if the value matched; otherwise no error is returned
+     * @return The output of ErrorStrategy::makeError() or default value of that type
      */
-    [[nodiscard]] MaybeError
+    [[nodiscard]] ReturnType
     verify(boost::json::value const& value, std::string_view key) const
     {
         if (value.is_object() and value.as_object().contains(key.data())) {
@@ -83,14 +90,16 @@ public:
 template <typename ErrorStrategy>
 class BadField<ErrorStrategy> {
 public:
+    using ReturnType = decltype(ErrorStrategy::makeError(std::declval<std::string_view>()));
+
     /**
      * @brief Verify whether the field is supported or not.
      *
      * @param value The JSON value representing the outer object
      * @param key The key used to retrieve the tested value from the outer object
-     * @return `RippledError::rpcNOT_SUPPORTED` if the field is found; otherwise no error is returned
+     * @return The output of ErrorStrategy::makeError() or default value of that type
      */
-    [[nodiscard]] static MaybeError
+    [[nodiscard]] static ReturnType
     verify(boost::json::value const& value, std::string_view key)
     {
         if (value.is_object() and value.as_object().contains(key))
@@ -117,4 +126,31 @@ struct NotSupportedErrorStrategy {
     }
 };
 
+struct DeprecatedErrorStrategy {
+    static std::optional<boost::json::object>
+    makeError(std::string_view key)
+    {
+        return makeWarning(
+            WarningCode::warnRPC_DEPRECATED,
+            fmt::format(
+                "Field '{}' is deprecated and was not used to process your request. Please update your request.", key
+            )
+        );
+    }
+
+    template <typename T>
+    static std::optional<boost::json::object>
+    makeError(std::string_view key, T const& value)
+    {
+        return makeWarning(
+            WarningCode::warnRPC_DEPRECATED,
+            fmt::format(
+                "Value '{}' for field '{}' is deprecated and was not used to process your request. Please update your "
+                "request.",
+                key,
+                value
+            )
+        );
+    }
+};
 }  // namespace rpc::validation::impl
