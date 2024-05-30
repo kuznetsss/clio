@@ -38,6 +38,7 @@
 #include <boost/beast/http/status.hpp>
 #include <boost/beast/http/string_body.hpp>
 #include <boost/beast/version.hpp>
+#include <boost/beast/websocket/error.hpp>
 #include <boost/beast/websocket/rfc6455.hpp>
 #include <boost/beast/websocket/stream_base.hpp>
 #include <boost/core/ignore_unused.hpp>
@@ -74,6 +75,7 @@ class WsBase : public ConnectionBase, public std::enable_shared_from_this<WsBase
     boost::beast::flat_buffer buffer_;
     std::reference_wrapper<web::DOSGuard> dosGuard_;
     bool sending_ = false;
+    bool receiving_ = false;
     std::queue<std::shared_ptr<std::string>> messages_;
     std::shared_ptr<HandlerType> const handler_;
 
@@ -139,6 +141,8 @@ public:
         if (ec) {
             wsFail(ec, "Failed to write");
         } else {
+            if (not receiving_)
+                doRead();
             maybeSendNext();
         }
     }
@@ -234,6 +238,7 @@ public:
         // Note: use entirely new buffer so previously used, potentially large, capacity is deallocated
         buffer_ = boost::beast::flat_buffer{};
 
+        receiving_ = true;
         derived().ws().async_read(buffer_, boost::beast::bind_front_handler(&WsBase::onRead, this->shared_from_this()));
     }
 
@@ -241,6 +246,8 @@ public:
     onRead(boost::beast::error_code ec, std::size_t bytes_transferred)
     {
         boost::ignore_unused(bytes_transferred);
+
+        receiving_ = false;
 
         if (ec)
             return wsFail(ec, "read");
@@ -275,8 +282,6 @@ public:
                 sendError(rpc::RippledError::rpcINTERNAL, std::move(requestStr));
             }
         }
-
-        doRead();
     }
 };
 }  // namespace web::impl
