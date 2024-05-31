@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2022-2023, the clio developers.
+    Copyright (c) 2022-2024, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -17,11 +17,11 @@
 */
 //==============================================================================
 
+#include "app/impl/ParseCliArgs.hpp"
 #include "data/BackendFactory.hpp"
 #include "etl/ETLService.hpp"
 #include "etl/NetworkValidatedLedgers.hpp"
 #include "feed/SubscriptionManager.hpp"
-#include "main/Build.hpp"
 #include "rpc/Counters.hpp"
 #include "rpc/RPCEngine.hpp"
 #include "rpc/WorkQueue.hpp"
@@ -38,11 +38,6 @@
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ssl/context.hpp>
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/positional_options.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
 
 #include <cstdint>
 #include <cstdlib>
@@ -61,48 +56,6 @@
 
 using namespace util;
 using namespace boost::asio;
-
-namespace po = boost::program_options;
-
-/**
- * @brief Parse command line and return path to configuration file
- *
- * @param argc
- * @param argv
- * @return Path to configuration file
- */
-std::string
-parseCli(int argc, char* argv[])
-{
-    static constexpr char defaultConfigPath[] = "/etc/opt/clio/config.json";
-
-    // clang-format off
-    po::options_description description("Options");
-    description.add_options()
-        ("help,h", "print help message and exit")
-        ("version,v", "print version and exit")
-        ("conf,c", po::value<std::string>()->default_value(defaultConfigPath), "configuration file")
-    ;
-    // clang-format on
-    po::positional_options_description positional;
-    positional.add("conf", 1);
-
-    po::variables_map parsed;
-    po::store(po::command_line_parser(argc, argv).options(description).positional(positional).run(), parsed);
-    po::notify(parsed);
-
-    if (parsed.count("version") != 0u) {
-        std::cout << Build::getClioFullVersionString() << '\n';
-        std::exit(EXIT_SUCCESS);
-    }
-
-    if (parsed.count("help") != 0u) {
-        std::cout << "Clio server " << Build::getClioFullVersionString() << "\n\n" << description;
-        std::exit(EXIT_SUCCESS);
-    }
-
-    return parsed["conf"].as<std::string>();
-}
 
 /**
  * @brief Parse certificates from configuration file
@@ -167,7 +120,7 @@ int
 main(int argc, char* argv[])
 try {
     util::setTerminationHandler();
-    auto const configPath = parseCli(argc, argv);
+    auto const configPath = app::parseCliArgs(argc, argv);
     auto const config = ConfigReader::open(configPath);
     if (!config) {
         std::cerr << "Couldnt parse config '" << configPath << "'." << std::endl;

@@ -1,5 +1,5 @@
 add_library(clio)
-target_sources(clio PRIVATE impl/Build.cpp)
+target_sources(clio PRIVATE impl/Build.cpp impl/ParseCliArgs.cpp)
 
 target_link_libraries(clio PUBLIC clio_etl clio_feed clio_web clio_rpc)
 

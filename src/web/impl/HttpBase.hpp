@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "main/Build.hpp"
+#include "app/Build.hpp"
 #include "rpc/Errors.hpp"
 #include "util/Taggable.hpp"
 #include "util/log/Logger.hpp"

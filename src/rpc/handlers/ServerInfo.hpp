@@ -19,10 +19,10 @@
 
 #pragma once
 
+#include "app/Build.hpp"
 #include "data/BackendInterface.hpp"
 #include "data/DBHelpers.hpp"
 #include "feed/SubscriptionManagerInterface.hpp"
-#include "main/Build.hpp"
 #include "rpc/Errors.hpp"
 #include "rpc/JS.hpp"
 #include "rpc/common/Specs.hpp"
