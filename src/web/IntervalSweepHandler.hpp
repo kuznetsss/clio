@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <functional>
+#include <future>
 
 namespace web {
 
@@ -42,6 +43,8 @@ class IntervalSweepHandler {
 
     web::BaseDOSGuard* dosGuard_ = nullptr;
 
+    std::future<void> cancelOperation_;
+
 public:
     /**
      * @brief Construct a new interval-based sweep handler.
@@ -51,9 +54,6 @@ public:
      */
     IntervalSweepHandler(util::Config const& config, boost::asio::io_context& ctx);
 
-    /**
-     * @brief Cancels the sweep timer.
-     */
     ~IntervalSweepHandler();
 
     /**
@@ -63,6 +63,12 @@ public:
      */
     void
     setup(web::BaseDOSGuard* guard);
+
+    /**
+     * @brief Stops the timer inside the handler.
+     */
+    void
+    stop();
 
 private:
     void

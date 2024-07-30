@@ -20,27 +20,27 @@
 #include "web/IntervalSweepHandler.hpp"
 
 #include "util/Assert.hpp"
-#include "util/Constants.hpp"
 #include "util/config/Config.hpp"
 #include "web/DOSGuard.hpp"
 
 #include <boost/asio/error.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/post.hpp>
+#include <boost/asio/spawn.hpp>
+#include <boost/asio/use_future.hpp>
 #include <boost/system/detail/error_code.hpp>
 
 #include <algorithm>
-#include <cstdint>
+#include <chrono>
 #include <functional>
+#include <future>
 
 namespace web {
 
 IntervalSweepHandler::IntervalSweepHandler(util::Config const& config, boost::asio::io_context& ctx)
     : sweepInterval_{std::max(
-          1u,
-          static_cast<uint32_t>(
-              config.valueOr("dos_guard.sweep_interval", 1.0) * static_cast<double>(util::MILLISECONDS_PER_SECOND)
-          )
+          std::chrono::milliseconds{1u},
+          util::Config::toMilliseconds(config.valueOr("dos_guard.sweep_interval", 1.0))
       )}
     , ctx_{std::ref(ctx)}
     , timer_{ctx.get_executor()}
@@ -49,7 +49,9 @@ IntervalSweepHandler::IntervalSweepHandler(util::Config const& config, boost::as
 
 IntervalSweepHandler::~IntervalSweepHandler()
 {
-    boost::asio::post(ctx_.get(), [this]() { timer_.cancel(); });
+    if (cancelOperation_.valid()) {
+        cancelOperation_.wait();
+    }
 }
 
 void
@@ -60,6 +62,12 @@ IntervalSweepHandler::setup(web::BaseDOSGuard* guard)
     ASSERT(dosGuard_ != nullptr, "DOS guard must be not null");
 
     createTimer();
+}
+
+void
+IntervalSweepHandler::stop()
+{
+    cancelOperation_ = boost::asio::spawn(ctx_.get(), [this](auto&&) { timer_.cancel(); }, boost::asio::use_future);
 }
 
 void

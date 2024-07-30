@@ -94,6 +94,8 @@ ClioApplication::run()
 
     // Rate limiter, to prevent abuse
     auto sweepHandler = web::IntervalSweepHandler{config_, ioc};
+    signalsHandler_.subscribeToStop([&sweepHandler]() { sweepHandler.stop(); });
+
     auto whitelistHandler = web::WhitelistHandler{config_};
     auto dosGuard = web::DOSGuard{config_, whitelistHandler, sweepHandler};
 
