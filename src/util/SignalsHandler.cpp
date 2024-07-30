@@ -113,6 +113,12 @@ SignalsHandler::~SignalsHandler()
 }
 
 void
+SignalsHandler::subscribeToStop(StopCallback const& callback, Priority priority)
+{
+    stopSignal_.connect(static_cast<int>(priority), callback);
+}
+
+void
 SignalsHandler::cancelTimer()
 {
     if (timer_.has_value())

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "util/SignalsHandlerInterface.hpp"
 #include "util/async/context/BasicExecutionContext.hpp"
 #include "util/config/Config.hpp"
 #include "util/log/Logger.hpp"
@@ -35,7 +36,6 @@
 #include <cstdlib>
 #include <functional>
 #include <optional>
-#include <string>
 
 namespace util {
 
@@ -47,7 +47,7 @@ class SignalsHandlerStatic;
  * @brief Class handling signals.
  * @note There could be only one instance of this class.
  */
-class SignalsHandler {
+class SignalsHandler : public SignalsHandlerInterface {
     std::chrono::steady_clock::duration gracefulPeriod_;
     async::PoolExecutionContext context_;
     std::optional<async::PoolExecutionContext::ScheduledOperation<void>> timer_;
@@ -59,11 +59,6 @@ class SignalsHandler {
     friend class impl::SignalsHandlerStatic;
 
 public:
-    /**
-     * @brief Enum for stop priority.
-     */
-    enum class Priority { StopFirst = 0, Normal = 1, StopLast = 2 };
-
     /**
      * @brief Create SignalsHandler object.
      *
@@ -82,21 +77,16 @@ public:
     /**
      * @brief Destructor of SignalsHandler.
      */
-    ~SignalsHandler();
+    ~SignalsHandler() override;
 
     /**
      * @brief Subscribe to stop signal.
      *
-     * @tparam SomeCallback The type of the callback.
      * @param callback The callback to call on stop signal.
      * @param priority The priority of the callback. Default is Normal.
      */
-    template <std::invocable SomeCallback>
     void
-    subscribeToStop(SomeCallback&& callback, Priority priority = Priority::Normal)
-    {
-        stopSignal_.connect(static_cast<int>(priority), std::forward<SomeCallback>(callback));
-    }
+    subscribeToStop(StopCallback const& callback, Priority priority = Priority::Normal) override;
 
     static constexpr auto HANDLED_SIGNALS = {SIGINT, SIGTERM};
 
