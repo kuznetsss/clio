@@ -19,12 +19,14 @@
 
 #pragma once
 
+#include "util/SignalsHandlerInterface.hpp"
 #include "util/config/Config.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -41,9 +43,10 @@ class IntervalSweepHandler {
     std::reference_wrapper<boost::asio::io_context> ctx_;
     boost::asio::steady_timer timer_;
 
-    web::BaseDOSGuard* dosGuard_ = nullptr;
+    std::reference_wrapper<web::BaseDOSGuard> dosGuard_;
 
     std::future<void> cancelOperation_;
+    std::atomic_bool stopped_{false};
 
 public:
     /**
@@ -51,18 +54,17 @@ public:
      *
      * @param config Clio config to use
      * @param ctx The boost::asio::io_context to use
+     * @param dosGuard The DOS guard to reset on each sweep
+     * @param signalsHandler Signals handler to register for shutdown signals
      */
-    IntervalSweepHandler(util::Config const& config, boost::asio::io_context& ctx);
+    IntervalSweepHandler(
+        util::Config const& config,
+        boost::asio::io_context& ctx,
+        web::BaseDOSGuard& dosGuard,
+        util::SignalsHandlerInterface& signalsHandler
+    );
 
     ~IntervalSweepHandler();
-
-    /**
-     * @brief This setup member function is called by @ref BasicDOSGuard during its initialization.
-     *
-     * @param guard Pointer to the dos guard
-     */
-    void
-    setup(web::BaseDOSGuard* guard);
 
     /**
      * @brief Stops the timer inside the handler.

@@ -129,7 +129,7 @@ target_sources(
           web/impl/ServerSslContextTests.cpp
           web/RPCServerHandlerTests.cpp
           web/ServerTests.cpp
-          web/SweepHandlerTests.cpp
+          web/IntervalSweepHandlerTests.cpp
           web/WhitelistHandlerTests.cpp
 )
 

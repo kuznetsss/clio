@@ -19,7 +19,7 @@
 
 #include "web/IntervalSweepHandler.hpp"
 
-#include "util/Assert.hpp"
+#include "util/SignalsHandlerInterface.hpp"
 #include "util/config/Config.hpp"
 #include "web/DOSGuard.hpp"
 
@@ -37,37 +37,41 @@
 
 namespace web {
 
-IntervalSweepHandler::IntervalSweepHandler(util::Config const& config, boost::asio::io_context& ctx)
+IntervalSweepHandler::IntervalSweepHandler(
+    util::Config const& config,
+    boost::asio::io_context& ctx,
+    web::BaseDOSGuard& dosGuard,
+    util::SignalsHandlerInterface& signalsHandler
+)
     : sweepInterval_{std::max(
           std::chrono::milliseconds{1u},
           util::Config::toMilliseconds(config.valueOr("dos_guard.sweep_interval", 1.0))
       )}
     , ctx_{std::ref(ctx)}
     , timer_{ctx.get_executor()}
+    , dosGuard_{dosGuard}
 {
+    createTimer();
+    signalsHandler.subscribeToStop([this]() { this->stop(); });
 }
 
 IntervalSweepHandler::~IntervalSweepHandler()
 {
-    if (cancelOperation_.valid()) {
+    if (cancelOperation_.valid())
         cancelOperation_.wait();
-    }
-}
-
-void
-IntervalSweepHandler::setup(web::BaseDOSGuard* guard)
-{
-    ASSERT(dosGuard_ == nullptr, "Cannot setup DOS guard more than once");
-    dosGuard_ = guard;
-    ASSERT(dosGuard_ != nullptr, "DOS guard must be not null");
-
-    createTimer();
 }
 
 void
 IntervalSweepHandler::stop()
 {
-    cancelOperation_ = boost::asio::spawn(ctx_.get(), [this](auto&&) { timer_.cancel(); }, boost::asio::use_future);
+    cancelOperation_ = boost::asio::spawn(
+        ctx_.get(),
+        [this](auto&&) {
+            timer_.cancel();
+            stopped_ = true;
+        },
+        boost::asio::use_future
+    );
 }
 
 void
@@ -75,10 +79,11 @@ IntervalSweepHandler::createTimer()
 {
     timer_.expires_after(sweepInterval_);
     timer_.async_wait([this](boost::system::error_code const& error) {
-        if (error == boost::asio::error::operation_aborted)
+        if (error == boost::asio::error::operation_aborted || stopped_) {
             return;
+        }
 
-        dosGuard_->clear();
+        dosGuard_.get().clear();
         boost::asio::post(ctx_.get(), [this] { createTimer(); });
     });
 }

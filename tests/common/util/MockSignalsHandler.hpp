@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 /*
     This file is part of clio: https://github.com/XRPLF/clio
-    Copyright (c) 2023, the clio developers.
+    Copyright (c) 2022, the clio developers.
 
     Permission to use, copy, modify, and distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
@@ -17,41 +17,11 @@
 */
 //==============================================================================
 
-#include "rpc/FakesAndMocks.hpp"
-#include "util/AsioContextTestFixture.hpp"
-#include "util/config/Config.hpp"
-#include "web/IntervalSweepHandler.hpp"
+#include "util/SignalsHandlerInterface.hpp"
 
-#include <boost/json/parse.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
-
-using namespace util;
-using namespace web;
-using namespace testing;
-
-constexpr static auto JSONData = R"JSON(
-    {
-        "dos_guard": {
-            "max_fetches": 100,
-            "sweep_interval": 0.1,
-            "max_connections": 2,
-            "whitelist": ["127.0.0.1"]
-        }
-    }
-)JSON";
-
-class DOSGuardIntervalSweepHandlerTest : public SyncAsioContextTest {
-protected:
-    Config cfg{boost::json::parse(JSONData)};
-    IntervalSweepHandler sweepHandler{cfg, ctx};
-    tests::common::BasicDOSGuardMock<IntervalSweepHandler> guard{sweepHandler};
+struct SignalsHandlerMock : util::SignalsHandlerInterface {
+    MOCK_METHOD(void, subscribeToStop, (StopCallback const&, Priority), (override));
 };
-
-TEST_F(DOSGuardIntervalSweepHandlerTest, SweepAfterInterval)
-{
-    EXPECT_CALL(guard, clear()).Times(AtLeast(2));
-    ctx.run_for(std::chrono::milliseconds(400));
-}

@@ -20,6 +20,7 @@
 #include "util/AssignRandomPort.hpp"
 #include "util/LoggerFixtures.hpp"
 #include "util/MockPrometheus.hpp"
+#include "util/SignalsHandler.hpp"
 #include "util/TestHttpSyncClient.hpp"
 #include "util/config/Config.hpp"
 #include "util/prometheus/Label.hpp"
@@ -129,14 +130,16 @@ struct WebServerTest : NoLoggerFixture {
     boost::asio::io_context ctxSync;
     std::string const port = std::to_string(tests::util::generateFreePort());
     Config cfg{generateJSONWithDynamicPort(port)};
-    IntervalSweepHandler sweepHandler = web::IntervalSweepHandler{cfg, ctxSync};
+    util::SignalsHandler signalsHandler{cfg};
     WhitelistHandler whitelistHandler = web::WhitelistHandler{cfg};
-    DOSGuard dosGuard = web::DOSGuard{cfg, whitelistHandler, sweepHandler};
+    DOSGuard dosGuard = web::DOSGuard{cfg, whitelistHandler};
+    IntervalSweepHandler sweepHandler = web::IntervalSweepHandler{cfg, ctxSync, dosGuard, signalsHandler};
 
     Config cfgOverload{generateJSONDataOverload(port)};
-    IntervalSweepHandler sweepHandlerOverload = web::IntervalSweepHandler{cfgOverload, ctxSync};
     WhitelistHandler whitelistHandlerOverload = web::WhitelistHandler{cfgOverload};
-    DOSGuard dosGuardOverload = web::DOSGuard{cfgOverload, whitelistHandlerOverload, sweepHandlerOverload};
+    DOSGuard dosGuardOverload = web::DOSGuard{cfgOverload, whitelistHandlerOverload};
+    IntervalSweepHandler sweepHandlerOverload =
+        web::IntervalSweepHandler{cfgOverload, ctxSync, dosGuardOverload, signalsHandler};
     // this ctx is for http server
     boost::asio::io_context ctx;
 

@@ -27,14 +27,12 @@
 
 #include <string_view>
 
-using namespace testing;
-using namespace util;
-using namespace std;
 using namespace web;
+using testing::Return;
 namespace json = boost::json;
 
-namespace {
-constexpr auto JSONData = R"JSON(
+struct DOSGuardTest : NoLoggerFixture {
+    static constexpr auto JSONData = R"JSON(
     {
         "dos_guard": {
             "max_fetches": 100,
@@ -48,40 +46,17 @@ constexpr auto JSONData = R"JSON(
     }
 )JSON";
 
-constexpr auto IP = "127.0.0.2";
+    static constexpr auto IP = "127.0.0.2";
 
-struct MockWhitelistHandler {
-    MOCK_METHOD(bool, isWhiteListed, (std::string_view ip), (const));
-};
+    struct MockWhitelistHandler {
+        MOCK_METHOD(bool, isWhiteListed, (std::string_view ip), (const));
+    };
 
-using MockWhitelistHandlerType = NiceMock<MockWhitelistHandler>;
+    using MockWhitelistHandlerType = testing::NiceMock<MockWhitelistHandler>;
 
-class FakeSweepHandler {
-private:
-    using guardType = BasicDOSGuard<MockWhitelistHandlerType, FakeSweepHandler>;
-    guardType* dosGuard_;
-
-public:
-    void
-    setup(guardType* guard)
-    {
-        dosGuard_ = guard;
-    }
-
-    void
-    sweep()
-    {
-        dosGuard_->clear();
-    }
-};
-};  // namespace
-
-class DOSGuardTest : public NoLoggerFixture {
-protected:
-    Config cfg{json::parse(JSONData)};
-    FakeSweepHandler sweepHandler{};
+    util::Config cfg{json::parse(JSONData)};
     MockWhitelistHandlerType whitelistHandler;
-    BasicDOSGuard<MockWhitelistHandlerType, FakeSweepHandler> guard{cfg, whitelistHandler, sweepHandler};
+    BasicDOSGuard<MockWhitelistHandlerType> guard{cfg, whitelistHandler};
 };
 
 TEST_F(DOSGuardTest, Whitelisting)
@@ -108,7 +83,7 @@ TEST_F(DOSGuardTest, ConnectionCount)
 
 TEST_F(DOSGuardTest, FetchCount)
 {
-    EXPECT_TRUE(guard.add(IP, 50));  // half of allowence
+    EXPECT_TRUE(guard.add(IP, 50));  // half of allowance
     EXPECT_TRUE(guard.add(IP, 50));  // now fully charged
     EXPECT_FALSE(guard.add(IP, 1));  // can't add even 1 anymore
     EXPECT_FALSE(guard.isOk(IP));
@@ -119,12 +94,12 @@ TEST_F(DOSGuardTest, FetchCount)
 
 TEST_F(DOSGuardTest, ClearFetchCountOnTimer)
 {
-    EXPECT_TRUE(guard.add(IP, 50));  // half of allowence
+    EXPECT_TRUE(guard.add(IP, 50));  // half of allowance
     EXPECT_TRUE(guard.add(IP, 50));  // now fully charged
     EXPECT_FALSE(guard.add(IP, 1));  // can't add even 1 anymore
     EXPECT_FALSE(guard.isOk(IP));
 
-    sweepHandler.sweep();         // pretend sweep called from timer
+    guard.clear();                // pretend sweep called from timer
     EXPECT_TRUE(guard.isOk(IP));  // can fetch again
 }
 
@@ -148,6 +123,6 @@ TEST_F(DOSGuardTest, RequestLimitOnTimer)
     EXPECT_TRUE(guard.isOk(IP));
     EXPECT_FALSE(guard.request(IP));
     EXPECT_FALSE(guard.isOk(IP));
-    sweepHandler.sweep();
+    guard.clear();
     EXPECT_TRUE(guard.isOk(IP));  // can request again
 }
