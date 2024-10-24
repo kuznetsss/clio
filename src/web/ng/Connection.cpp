@@ -54,4 +54,10 @@ ConnectionContext::ConnectionContext(Connection const& connection) : connection_
 {
 }
 
+std::string const&
+ConnectionContext::ip() const
+{
+    return connection_.get().ip();
+}
+
 }  // namespace web::ng

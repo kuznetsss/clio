@@ -46,6 +46,14 @@ public:
      */
     int
     run();
+
+    /**
+     * @brief Run the application with the ng web server
+     *
+     * @return exit code
+     */
+    int
+    runWithNgWebServer();
 };
 
 }  // namespace app

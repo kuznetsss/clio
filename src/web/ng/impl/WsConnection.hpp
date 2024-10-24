@@ -119,7 +119,7 @@ public:
     ) override
     {
         auto error = util::withTimeout(
-            [this, &response](auto&& yield) { stream_.async_write(response.asConstBuffer(), yield); }, yield, timeout
+            [this, &response](auto&& yield) { stream_.async_write(response.intoWsResponse(), yield); }, yield, timeout
         );
         if (error)
             return error;

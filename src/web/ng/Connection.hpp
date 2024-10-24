@@ -143,6 +143,14 @@ public:
      * @param connection The connection.
      */
     explicit ConnectionContext(Connection const& connection);
+
+    /**
+     * @brief Get the ip of the client.
+     *
+     * @return The ip of the client.
+     */
+    std::string const&
+    ip() const;
 };
 
 }  // namespace web::ng

@@ -47,11 +47,11 @@ TEST_F(ResponseDeathTest, intoHttpResponseWithoutHttpData)
     EXPECT_DEATH(std::move(response).intoHttpResponse(), "");
 }
 
-TEST_F(ResponseDeathTest, asConstBufferWithHttpData)
+TEST_F(ResponseDeathTest, intoWsResponseWithHttpData)
 {
     Request const request{http::request<http::string_body>{http::verb::get, "/", 11}};
     web::ng::Response response{boost::beast::http::status::ok, "message", request};
-    EXPECT_DEATH(response.asConstBuffer(), "");
+    EXPECT_DEATH(response.intoWsResponse(), "");
 }
 
 struct ResponseTest : testing::Test {
@@ -105,7 +105,7 @@ TEST_F(ResponseTest, asConstBuffer)
     std::string const responseMessage = "response message";
     web::ng::Response response{responseStatus_, responseMessage, request};
 
-    auto const buffer = response.asConstBuffer();
+    auto const buffer = response.intoWsResponse();
     EXPECT_EQ(buffer.size(), responseMessage.size());
 
     std::string const messageFromBuffer{static_cast<char const*>(buffer.data()), buffer.size()};
@@ -118,7 +118,7 @@ TEST_F(ResponseTest, asConstBufferJson)
     boost::json::object const responseMessage{{"key", "value"}};
     web::ng::Response response{responseStatus_, responseMessage, request};
 
-    auto const buffer = response.asConstBuffer();
+    auto const buffer = response.intoWsResponse();
     EXPECT_EQ(buffer.size(), boost::json::serialize(responseMessage).size());
 
     std::string const messageFromBuffer{static_cast<char const*>(buffer.data()), buffer.size()};
