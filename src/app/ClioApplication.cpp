@@ -87,7 +87,7 @@ ClioApplication::ClioApplication(util::Config const& config) : config_(config), 
 }
 
 int
-ClioApplication::run()
+ClioApplication::run(bool const useNgWebServer)
 {
     auto const threads = config_.valueOr("io_threads", 2);
     if (threads <= 0) {
@@ -137,104 +137,55 @@ ClioApplication::run()
     // Init the web server
     auto handler =
         std::make_shared<web::RPCServerHandler<RPCEngineType, etl::ETLService>>(config_, backend, rpcEngine, etl);
-    auto const httpServer = web::make_HttpServer(config_, ioc, dosGuard, handler);
 
-    // Blocks until stopped.
-    // When stopped, shared_ptrs fall out of scope
-    // Calls destructors on all resources, and destructs in order
-    start(ioc, threads);
-
-    return EXIT_SUCCESS;
-}
-
-int
-ClioApplication::runWithNgWebServer()
-{
-    auto const threads = config_.valueOr("io_threads", 2);
-    if (threads <= 0) {
-        LOG(util::LogService::fatal()) << "io_threads is less than 1";
-        return EXIT_FAILURE;
-    }
-    LOG(util::LogService::info()) << "Number of io threads = " << threads;
-
-    // IO context to handle all incoming requests, as well as other things.
-    // This is not the only io context in the application.
-    boost::asio::io_context ioc{threads};
-
-    // Rate limiter, to prevent abuse
-    auto whitelistHandler = web::dosguard::WhitelistHandler{config_};
-    auto dosGuard = web::dosguard::DOSGuard{config_, whitelistHandler};
-    auto sweepHandler = web::dosguard::IntervalSweepHandler{config_, ioc, dosGuard};
-
-    // Interface to the database
-    auto backend = data::make_Backend(config_);
-
-    // Manages clients subscribed to streams
-    auto subscriptions = feed::SubscriptionManager::make_SubscriptionManager(config_, backend);
-
-    // Tracks which ledgers have been validated by the network
-    auto ledgers = etl::NetworkValidatedLedgers::make_ValidatedLedgers();
-
-    // Handles the connection to one or more rippled nodes.
-    // ETL uses the balancer to extract data.
-    // The server uses the balancer to forward RPCs to a rippled node.
-    // The balancer itself publishes to streams (transactions_proposed and accounts_proposed)
-    auto balancer = etl::LoadBalancer::make_LoadBalancer(config_, ioc, backend, subscriptions, ledgers);
-
-    // ETL is responsible for writing and publishing to streams. In read-only mode, ETL only publishes
-    auto etl = etl::ETLService::make_ETLService(config_, ioc, backend, subscriptions, balancer, ledgers);
-
-    auto workQueue = rpc::WorkQueue::make_WorkQueue(config_);
-    auto counters = rpc::Counters::make_Counters(workQueue);
-    auto const amendmentCenter = std::make_shared<data::AmendmentCenter const>(backend);
-    auto const handlerProvider = std::make_shared<rpc::impl::ProductionHandlerProvider const>(
-        config_, backend, subscriptions, balancer, etl, amendmentCenter, counters
-    );
-
-    using RPCEngineType = rpc::RPCEngine<etl::LoadBalancer, rpc::Counters>;
-    auto const rpcEngine =
-        RPCEngineType::make_RPCEngine(config_, backend, balancer, dosGuard, workQueue, counters, handlerProvider);
-
-    auto handler =
-        std::make_shared<web::RPCServerHandler<RPCEngineType, etl::ETLService>>(config_, backend, rpcEngine, etl);
-
-    auto expectedAdminVerifier = web::impl::make_AdminVerificationStrategy(config_);
-    if (not expectedAdminVerifier.has_value()) {
-        LOG(util::LogService::error()) << "Error admin verifier: " << expectedAdminVerifier.error();
-        return EXIT_FAILURE;
-    }
-    auto adminVerifier = std::move(expectedAdminVerifier).value();
-
-    auto httpServer = web::ng::make_Server(config_, ioc);
-
-    if (not httpServer.has_value()) {
-        LOG(util::LogService::error()) << "Error creating web server: " << httpServer.error();
-        return EXIT_FAILURE;
-    }
-
-    httpServer->onGet(
-        "/metrics",
-        [adminVerifier](
-            web::ng::Request const& request, web::ng::ConnectionContext context, boost::asio::yield_context
-        ) -> web::ng::Response {
-            auto const maybeHttpRequest = request.asHttpRequest();
-            ASSERT(maybeHttpRequest.has_value(), "Got not a http request in Get");
-            auto const& httpRequest = maybeHttpRequest->get();
-
-            // FIXME(#1702): Using veb server thread to handle prometheus request. Better to post on work queue.
-            auto maybeResponse = util::prometheus::handlePrometheusRequest(
-                httpRequest, adminVerifier->isAdmin(httpRequest, context.ip())
-            );
-            ASSERT(maybeResponse.has_value(), "Got unexpected request for Prometheus");
-            return web::ng::Response{std::move(maybeResponse).value(), request};
+    if (useNgWebServer) {
+        auto expectedAdminVerifier = web::impl::make_AdminVerificationStrategy(config_);
+        if (not expectedAdminVerifier.has_value()) {
+            LOG(util::LogService::error()) << "Error admin verifier: " << expectedAdminVerifier.error();
+            return EXIT_FAILURE;
         }
-    );
+        auto adminVerifier = std::move(expectedAdminVerifier).value();
 
-    auto const maybeError = httpServer->run();
-    if (maybeError.has_value()) {
-        LOG(util::LogService::error()) << "Error starting web server: " << *maybeError;
-        return EXIT_FAILURE;
+        auto httpServer = web::ng::make_Server(config_, ioc);
+
+        if (not httpServer.has_value()) {
+            LOG(util::LogService::error()) << "Error creating web server: " << httpServer.error();
+            return EXIT_FAILURE;
+        }
+
+        httpServer->onGet(
+            "/metrics",
+            [adminVerifier](
+                web::ng::Request const& request, web::ng::ConnectionContext context, boost::asio::yield_context
+            ) -> web::ng::Response {
+                auto const maybeHttpRequest = request.asHttpRequest();
+                ASSERT(maybeHttpRequest.has_value(), "Got not a http request in Get");
+                auto const& httpRequest = maybeHttpRequest->get();
+
+                // FIXME(#1702): Using veb server thread to handle prometheus request. Better to post on work queue.
+                auto maybeResponse = util::prometheus::handlePrometheusRequest(
+                    httpRequest, adminVerifier->isAdmin(httpRequest, context.ip())
+                );
+                ASSERT(maybeResponse.has_value(), "Got unexpected request for Prometheus");
+                return web::ng::Response{std::move(maybeResponse).value(), request};
+            }
+        );
+
+        auto const maybeError = httpServer->run();
+        if (maybeError.has_value()) {
+            LOG(util::LogService::error()) << "Error starting web server: " << *maybeError;
+            return EXIT_FAILURE;
+        }
+
+        // Blocks until stopped.
+        // When stopped, shared_ptrs fall out of scope
+        // Calls destructors on all resources, and destructs in order
+        start(ioc, threads);
+
+        return EXIT_SUCCESS;
     }
+
+    auto const httpServer = web::make_HttpServer(config_, ioc, dosGuard, handler);
 
     // Blocks until stopped.
     // When stopped, shared_ptrs fall out of scope

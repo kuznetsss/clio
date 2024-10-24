@@ -42,18 +42,12 @@ public:
     /**
      * @brief Run the application
      *
-     * @return exit code
-     */
-    int
-    run();
-
-    /**
-     * @brief Run the application with the ng web server
+     * @param useNgWebServer Whether to use the new web server
      *
      * @return exit code
      */
     int
-    runWithNgWebServer();
+    run(bool useNgWebServer);
 };
 
 }  // namespace app
