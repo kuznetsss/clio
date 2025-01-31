@@ -81,7 +81,7 @@ generateDefaultRPCEngineConfig()
         {"rpc.cache_timeout", ConfigValue{ConfigType::Double}.defaultValue(0.0).withConstraint(gValidatePositiveDouble)
         },
         {"log_tag_style", ConfigValue{ConfigType::String}.defaultValue("uint")},
-        {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}.optional()}},
+        {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}}},
         {"dos_guard.max_fetches",
          ConfigValue{ConfigType::Integer}.defaultValue(1000'000u).withConstraint(gValidateUint32)},
         {"dos_guard.max_connections", ConfigValue{ConfigType::Integer}.defaultValue(20u).withConstraint(gValidateUint32)
@@ -420,6 +420,9 @@ TEST_P(RPCEngineCacheParameterTest, Test)
 
     auto cfgCache{generateDefaultRPCEngineConfig()};
     auto const errors = cfgCache.parse(json);
+    if (errors.has_value()) {
+        std::ranges::for_each(*errors, [](auto e) { std::cout << e.error << std::endl; });
+    }
     EXPECT_TRUE(!errors.has_value());
 
     auto const admin = testParam.isAdmin;

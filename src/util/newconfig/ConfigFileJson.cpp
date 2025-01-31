@@ -61,7 +61,7 @@ extractJsonValue(boost::json::value const& jsonValue)
         return static_cast<int64_t>(jsonValue.as_uint64());
     }
     if (jsonValue.is_string()) {
-        return jsonValue.as_string().c_str();
+        return std::string{jsonValue.as_string()};
     }
     if (jsonValue.is_bool()) {
         return jsonValue.as_bool();

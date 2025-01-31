@@ -125,7 +125,7 @@ getParseServerConfig(boost::json::value val)
         {"dos_guard.sweep_interval", ConfigValue{ConfigType::Integer}},
         {"dos_guard.max_connections", ConfigValue{ConfigType::Integer}},
         {"dos_guard.max_requests", ConfigValue{ConfigType::Integer}},
-        {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}.optional()}},
+        {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}}},
         {"ssl_key_file", ConfigValue{ConfigType::String}.optional()},
         {"ssl_cert_file", ConfigValue{ConfigType::String}.optional()},
     };

@@ -42,6 +42,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -65,7 +66,7 @@ ClioConfigDefinition::getObject(std::string_view prefix, std::optional<std::size
         auto const hasPrefix = mapKey.starts_with(prefixWithDot);
         if (idx.has_value() && hasPrefix && std::holds_alternative<Array>(mapVal)) {
             ASSERT(std::get<Array>(mapVal).size() > idx.value(), "Index provided is out of scope");
-            // we want to support getObject("array") and getObject("array.[]"), so we check if "[]" exists
+            // we want to support getObject("array") and getObject("array. []"), so we check if "[]" exists
             if (!prefix.contains("[]"))
                 return ObjectView{prefixWithDot + "[]", idx.value(), *this};
             return ObjectView{prefix, idx.value(), *this};
@@ -156,9 +157,11 @@ std::optional<std::vector<Error>>
 ClioConfigDefinition::parse(ConfigFileInterface const& config)
 {
     std::vector<Error> listOfErrors;
+    std::unordered_set<std::string_view> arrayKeys;
+
     for (auto& [key, value] : map_) {
         // if key doesn't exist in user config, makes sure it is marked as ".optional()" or has ".defaultValue()"" in
-        // ClioConfigDefitinion above
+        // ClioConfigDefinition above
         if (!config.containsKey(key)) {
             if (std::holds_alternative<ConfigValue>(value)) {
                 if (!(std::get<ConfigValue>(value).isOptional() || std::get<ConfigValue>(value).hasValue()))
@@ -178,25 +181,67 @@ ClioConfigDefinition::parse(ConfigFileInterface const& config)
                               // attempt to set the value from the configuration for the specified key.
                               [&key, &config, &listOfErrors](ConfigValue& val) {
                                   if (auto const maybeError = val.setValue(config.getValue(key), key);
-                                      maybeError.has_value())
+                                      maybeError.has_value()) {
                                       listOfErrors.emplace_back(maybeError.value());
+                                  }
                               },
                               // handle the case where the config value is an array.
                               // iterate over each provided value in the array and attempt to set it for the key.
-                              [&key, &config, &listOfErrors](Array& arr) {
+                              [&key, &config, &listOfErrors, &arrayKeys](Array& arr) {
                                   for (auto const& val : config.getArray(key)) {
-                                      if (auto const maybeError = arr.addValue(val, key); maybeError.has_value())
+                                      if (auto const maybeError = arr.addValue(val, key); maybeError.has_value()) {
                                           listOfErrors.emplace_back(maybeError.value());
+                                      } else {
+                                          arrayKeys.insert(key);
+                                      }
                                   }
                               }
             },
             value
         );
     }
+    auto const arrayErrors = checkArrays(std::move(arrayKeys));
+    listOfErrors.insert(listOfErrors.end(), arrayErrors.begin(), arrayErrors.end());
+
     if (!listOfErrors.empty())
         return listOfErrors;
 
     return std::nullopt;
+}
+
+std::vector<Error>
+ClioConfigDefinition::checkArrays(std::unordered_set<std::string_view> arrayKeys) const
+{
+    // This method check that all fields of each object in every array are filled
+    auto getArraySize = [](std::variant<ConfigValue, Array> const& v) {
+        ASSERT(std::holds_alternative<Array>(v), "Expected Array");
+        return std::get<Array>(v).size();
+    };
+    std::vector<Error> result;
+    while (arrayKeys.size() > 0) {
+        auto it = arrayKeys.cbegin();
+        auto prefix = it->substr(0, it->find("[]") + 2);
+        std::vector<std::string_view> keysToCheck{*it};
+        ++it;
+
+        // Find all keys with the prefix
+        while (it != arrayKeys.cend()) {
+            if (it->starts_with(prefix))
+                keysToCheck.push_back(*it);
+            ++it;
+        }
+
+        std::ranges::for_each(keysToCheck, [&arrayKeys](auto const& key) { arrayKeys.erase(key); });
+
+        size_t const arrayLength = getArraySize(map_.at(keysToCheck.front()));
+        for (auto k : keysToCheck) {
+            if (getArraySize(map_.at(k)) != arrayLength) {
+                result.emplace_back(fmt::format("Missing fields for objects in array: {}", prefix));
+                break;
+            }
+        }
+    }
+    return result;
 }
 
 }  // namespace util::config

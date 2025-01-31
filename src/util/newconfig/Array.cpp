@@ -34,6 +34,8 @@ namespace util::config {
 
 Array::Array(ConfigValue arg) : itemPattern_{std::move(arg)}
 {
+    ASSERT(not itemPattern_.isOptional(), "Array item cannot be optional");
+    ASSERT(not itemPattern_.hasValue(), "Array item cannot have default value");
 }
 
 std::optional<Error>

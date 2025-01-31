@@ -54,6 +54,7 @@ ValueView
 ObjectView::getValueView(std::string_view key) const
 {
     auto const fullKey = getFullKey(key);
+    std::cout << fullKey << std::endl;
     if (arrayIndex_.has_value()) {
         return clioConfig_.get().getArray(fullKey).valueAt(arrayIndex_.value());
     }

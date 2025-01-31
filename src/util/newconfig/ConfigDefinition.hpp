@@ -47,6 +47,7 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -276,6 +277,9 @@ private:
         return fullKey;
     }
 
+    std::vector<Error>
+    checkArrays(std::unordered_set<std::string_view> arrayKeys) const;
+
     std::unordered_map<std::string_view, std::variant<ConfigValue, Array>> map_;
 };
 
@@ -318,9 +322,9 @@ static ClioConfigDefinition gClioConfig = ClioConfigDefinition{
 
      {"allow_no_etl", ConfigValue{ConfigType::Boolean}.defaultValue(false)},
 
-     {"etl_sources.[].ip", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidateIp)}},
-     {"etl_sources.[].ws_port", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidatePort)}},
-     {"etl_sources.[].grpc_port", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidatePort)}},
+     {"etl_sources.[].ip", Array{ConfigValue{ConfigType::String}.withConstraint(gValidateIp)}},
+     {"etl_sources.[].ws_port", Array{ConfigValue{ConfigType::String}.withConstraint(gValidatePort)}},
+     {"etl_sources.[].grpc_port", Array{ConfigValue{ConfigType::String}.withConstraint(gValidatePort)}},
 
      {"forwarding.cache_timeout",
       ConfigValue{ConfigType::Double}.defaultValue(0.0).withConstraint(gValidatePositiveDouble)},
@@ -331,7 +335,7 @@ static ClioConfigDefinition gClioConfig = ClioConfigDefinition{
 
      {"num_markers", ConfigValue{ConfigType::Integer}.optional().withConstraint(gValidateNumMarkers)},
 
-     {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}.optional()}},
+     {"dos_guard.whitelist.[]", Array{ConfigValue{ConfigType::String}}},
      {"dos_guard.max_fetches", ConfigValue{ConfigType::Integer}.defaultValue(1000'000u).withConstraint(gValidateUint32)
      },
      {"dos_guard.max_connections", ConfigValue{ConfigType::Integer}.defaultValue(20u).withConstraint(gValidateUint32)},
@@ -372,10 +376,8 @@ static ClioConfigDefinition gClioConfig = ClioConfigDefinition{
      {"cache.page_fetch_size", ConfigValue{ConfigType::Integer}.defaultValue(512).withConstraint(gValidateUint16)},
      {"cache.load", ConfigValue{ConfigType::String}.defaultValue("async").withConstraint(gValidateLoadMode)},
 
-     {"log_channels.[].channel", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidateChannelName)}
-     },
-     {"log_channels.[].log_level",
-      Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidateLogLevelName)}},
+     {"log_channels.[].channel", Array{ConfigValue{ConfigType::String}.withConstraint(gValidateChannelName)}},
+     {"log_channels.[].log_level", Array{ConfigValue{ConfigType::String}.withConstraint(gValidateLogLevelName)}},
 
      {"log_level", ConfigValue{ConfigType::String}.defaultValue("info").withConstraint(gValidateLogLevelName)},
 

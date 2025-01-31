@@ -49,10 +49,10 @@ generateConfig()
         {"header.sub.sub2Value", ConfigValue{ConfigType::String}.defaultValue("TSM")},
         {"ip", ConfigValue{ConfigType::Double}.defaultValue(444.22)},
         {"array.[].sub", Array{ConfigValue{ConfigType::Double}}},
-        {"array.[].sub2", Array{ConfigValue{ConfigType::String}.optional()}},
+        {"array.[].sub2", Array{ConfigValue{ConfigType::String}}},
         {"higher.[].low.section", Array{ConfigValue{ConfigType::String}.withConstraint(gValidateChannelName)}},
         {"higher.[].low.admin", Array{ConfigValue{ConfigType::Boolean}}},
-        {"dosguard.whitelist.[]", Array{ConfigValue{ConfigType::String}.optional()}},
+        {"dosguard.whitelist.[]", Array{ConfigValue{ConfigType::String}}},
         {"dosguard.port", ConfigValue{ConfigType::Integer}.defaultValue(55555).withConstraint(gValidatePort)},
         {"optional.withDefault", ConfigValue{ConfigType::Double}.defaultValue(0.0).optional()},
         {"optional.withNoDefault", ConfigValue{ConfigType::Double}.optional()},
@@ -117,7 +117,7 @@ static constexpr auto kJSON_DATA = R"JSON({
         },
         {
             "sub": 4321.55,
-           "sub2": "temporary"
+            "sub2": "temporary"
         },
         {
             "sub": 5555.44,

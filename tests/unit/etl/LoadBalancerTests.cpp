@@ -104,9 +104,9 @@ getParseLoadBalancerConfig(boost::json::value val)
          {"forwarding.request_timeout",
           ConfigValue{ConfigType::Double}.defaultValue(10.0).withConstraint(gValidatePositiveDouble)},
          {"allow_no_etl", ConfigValue{ConfigType::Boolean}.defaultValue(false)},
-         {"etl_sources.[].ip", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidateIp)}},
-         {"etl_sources.[].ws_port", Array{ConfigValue{ConfigType::String}.optional().withConstraint(gValidatePort)}},
-         {"etl_sources.[].grpc_port", Array{ConfigValue{ConfigType::String}.optional()}},
+         {"etl_sources.[].ip", Array{ConfigValue{ConfigType::String}.withConstraint(gValidateIp)}},
+         {"etl_sources.[].ws_port", Array{ConfigValue{ConfigType::String}.withConstraint(gValidatePort)}},
+         {"etl_sources.[].grpc_port", Array{ConfigValue{ConfigType::String}}},
          {"num_markers", ConfigValue{ConfigType::Integer}.optional().withConstraint(gValidateNumMarkers)}}
     };
 
