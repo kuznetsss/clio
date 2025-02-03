@@ -98,6 +98,17 @@ public:
     [[nodiscard]] std::vector<ConfigValue>::const_iterator
     end() const;
 
+    /**
+     * @brief Returns the array prefix of the key. For example, if the key is foo.[].bar, the prefix is foo.[].
+     * @note The method has an assertion that provided key contains [].
+     * @warn Since this method returns string_view, the returned value is only valid as long as the key is valid.
+     *
+     * @param key The key to extract the prefix from
+     * @return The prefix of the key
+     */
+    static std::string_view
+    prefixFromKey(std::string_view key);
+
 private:
     ConfigValue itemPattern_;
     std::vector<ConfigValue> elements_;

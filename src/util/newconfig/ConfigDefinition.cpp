@@ -167,8 +167,16 @@ ClioConfigDefinition::parse(ConfigFileInterface const& config)
                 if (!(std::get<ConfigValue>(value).isOptional() || std::get<ConfigValue>(value).hasValue()))
                     listOfErrors.emplace_back(key, "key is required in user Config");
             } else if (std::holds_alternative<Array>(value)) {
-                if (!(std::get<Array>(value).getArrayPattern().isOptional()))
-                    listOfErrors.emplace_back(key, "key is required in user Config");
+                auto const prefix = Array::prefixFromKey(key);
+                if (!config.containsKey(prefix)) {
+                    listOfErrors.emplace_back(
+                        key,
+                        fmt::format(
+                            "Either the key is missing in at least one object or the whole array {}:[] is missing",
+                            prefix.substr(0, prefix.size() - 3)
+                        )
+                    );
+                }
             }
             continue;
         }
@@ -220,7 +228,7 @@ ClioConfigDefinition::checkArrays(std::unordered_set<std::string_view> arrayKeys
     std::vector<Error> result;
     while (arrayKeys.size() > 0) {
         auto it = arrayKeys.cbegin();
-        auto prefix = it->substr(0, it->find("[]") + 2);
+        auto prefix = Array::prefixFromKey(*it);
         std::vector<std::string_view> keysToCheck{*it};
         ++it;
 
@@ -233,10 +241,15 @@ ClioConfigDefinition::checkArrays(std::unordered_set<std::string_view> arrayKeys
 
         std::ranges::for_each(keysToCheck, [&arrayKeys](auto const& key) { arrayKeys.erase(key); });
 
-        size_t const arrayLength = getArraySize(map_.at(keysToCheck.front()));
+        size_t arrayLength = getArraySize(map_.at(keysToCheck.front()));
+        std::ranges::for_each(keysToCheck, [&](auto k) mutable {
+            std::cout << "key " << k << " array size " << getArraySize(map_.at(k)) << std::endl;
+            arrayLength = std::max(arrayLength, getArraySize(map_.at(k)));
+        });
+
         for (auto k : keysToCheck) {
             if (getArraySize(map_.at(k)) != arrayLength) {
-                result.emplace_back(fmt::format("Missing fields for objects in array: {}", prefix));
+                result.emplace_back(k, fmt::format("Missing field for objects in array: {}", prefix));
                 break;
             }
         }

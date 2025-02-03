@@ -142,10 +142,15 @@ ConfigFileJson::flattenJson(boost::json::object const& obj, std::string const& p
             flattenJson(value.as_object(), fullKey);
         } else if (value.is_array()) {
             auto const& arr = value.as_array();
-            for (std::size_t i = 0; i < arr.size(); ++i) {
-                std::string const arrayPrefix = fullKey + ".[]";
-                if (arr[i].is_object()) {
-                    flattenJson(arr[i].as_object(), arrayPrefix);
+            std::string const arrayPrefix = fullKey + ".[]";
+            if (arr.empty()) {
+                jsonObject_[arrayPrefix] = boost::json::array{};
+                continue;
+            }
+
+            for (auto& item : arr) {
+                if (item.is_object()) {
+                    flattenJson(item.as_object(), arrayPrefix);
                 } else {
                     jsonObject_[arrayPrefix] = arr;
                 }

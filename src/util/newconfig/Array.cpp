@@ -83,4 +83,11 @@ Array::end() const
     return elements_.end();
 }
 
+std::string_view
+Array::prefixFromKey(std::string_view key)
+{
+    ASSERT(key.contains("[]"), "Key does not contain []");
+    return key.substr(0, key.rfind("[]") + 2);
+}
+
 }  // namespace util::config

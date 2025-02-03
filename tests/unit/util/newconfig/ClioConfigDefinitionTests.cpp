@@ -17,10 +17,14 @@
 */
 //==============================================================================
 
+#include "util/LoggerFixtures.hpp"
+#include "util/newconfig/Array.hpp"
 #include "util/newconfig/ArrayView.hpp"
+#include "util/newconfig/ConfigConstraints.hpp"
 #include "util/newconfig/ConfigDefinition.hpp"
 #include "util/newconfig/ConfigDescription.hpp"
 #include "util/newconfig/ConfigFileJson.hpp"
+#include "util/newconfig/ConfigValue.hpp"
 #include "util/newconfig/FakeConfigData.hpp"
 #include "util/newconfig/Types.hpp"
 #include "util/newconfig/ValueView.hpp"
@@ -28,6 +32,7 @@
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
 #include <boost/json/value.hpp>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -40,7 +45,7 @@
 
 using namespace util::config;
 
-struct NewConfigTest : testing::Test {
+struct NewConfigTest : NoLoggerFixture {
     ClioConfigDefinition const configData = generateConfig();
 };
 
@@ -122,6 +127,148 @@ TEST_F(NewConfigTest, CheckAllKeys)
         expected.emplace((i->first));
     }
     EXPECT_EQ(expected, actual);
+}
+
+struct NewConfigArrayTest : NoLoggerFixture {
+    ClioConfigDefinition config{
+        {"array.[].sub", Array{ConfigValue{ConfigType::Double}}},
+        {"array.[].sub2", Array{ConfigValue{ConfigType::String}}},
+        {"higher.[].low.section", Array{ConfigValue{ConfigType::String}}},
+        {"higher.[].low.admin", Array{ConfigValue{ConfigType::Boolean}}},
+        {"dosguard.whitelist.[]", Array{ConfigValue{ConfigType::String}}},
+    };
+};
+
+TEST_F(NewConfigArrayTest, EmptyArrays)
+{
+    auto const jsonStr = R"json({
+        "array" : [],
+        "higher": [],
+        "dosguard": {
+            "whitelist": []
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    EXPECT_FALSE(errors);
+}
+
+TEST_F(NewConfigArrayTest, MissingArray)
+{
+    auto const jsonStr = R"json({
+        "higher": [],
+        "dosguard": {
+            "whitelist": []
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 2);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("array.[]"));
+    EXPECT_THAT(errors->at(1).error, testing::HasSubstr("array.[]"));
+}
+
+TEST_F(NewConfigArrayTest, MissingArrayInsideAnObject)
+{
+    auto const jsonStr = R"json({
+        "array" : [],
+        "higher": [],
+        "dosguard": {
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 1);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("dosguard.whitelist.[]"));
+}
+
+TEST_F(NewConfigArrayTest, MissingObjectFieldInsideArray)
+{
+    auto const jsonStr = R"json({
+        "array" : [{"sub": 111.11}],
+        "higher": [],
+        "dosguard": {
+            "whitelist": []
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 1);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("array.[].sub2"));
+}
+
+TEST_F(NewConfigArrayTest, MissingDifferentObjectFieldsInsideArray)
+{
+    auto const jsonStr = R"json({
+        "array" : [{"sub": 111.11}, {"sub2": "subCategory"}],
+        "higher": [],
+        "dosguard": {
+            "whitelist": []
+        }
+    })json";
+    // array.[].sub = { 111 }
+    // array.[].sub2 = { "subCategory" }
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 2);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("array.[].sub"));
+    EXPECT_THAT(errors->at(1).error, testing::HasSubstr("array.[].sub"));
+}
+TEST_F(NewConfigArrayTest, MissingDeepObjectFieldInsideArray)
+{
+    auto const jsonStr = R"json({
+        "array" : [],
+        "higher": [
+                {"low": {"section": "channel1"}},
+                {"low": {"section": "channel2", "admin": false}}
+        ],
+        "dosguard": {
+            "whitelist": [
+            ]
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 1);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("higher.[].low.admin"));
+}
+
+TEST_F(NewConfigArrayTest, MissingDeepObjectFieldForTwoItemsInsideArray)
+{
+    auto const jsonStr = R"json({
+        "array" : [],
+        "higher": [
+                {"low": {"section": "channel1"}},
+                {"low": {"section": "channel2"}}
+        ],
+        "dosguard": {
+            "whitelist": [
+            ]
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    ASSERT_TRUE(errors);
+    ASSERT_EQ(errors->size(), 1);
+    EXPECT_THAT(errors->at(0).error, testing::HasSubstr("higher.[].low.admin"));
+}
+
+TEST_F(NewConfigArrayTest, CorrectArrayValues)
+{
+    auto const jsonStr = R"json({
+        "array" : [
+            { "sub": 111.11, "sub2": "subCategory" },
+            { "sub": 4321.55, "sub2": "temporary" },
+            { "sub": 5555.44, "sub2": "london" }
+        ],
+        "higher": [
+            {"low": {"section": "channel1", "admin": true}},
+            {"low": {"section": "channel2", "admin": false}}
+        ],
+        "dosguard": {
+            "whitelist": ["someIp", "anotherIp"]
+        }
+    })json";
+    auto const errors = config.parse(ConfigFileJson{boost::json::parse(jsonStr).as_object()});
+    EXPECT_FALSE(errors);
 }
 
 struct NewConfigDeathTest : NewConfigTest {};
