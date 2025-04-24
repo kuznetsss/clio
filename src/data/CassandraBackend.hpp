@@ -88,6 +88,7 @@ protected:
     mutable ExecutionStrategyType executor_;
 
 public:
+    mutable std::vector<size_t> successor_keys_size;
     /**
      * @brief Create a new cassandra/scylla backend instance.
      *
@@ -671,6 +672,7 @@ public:
         const override
     {
         if (auto const res = executor_.read(yield, schema_->selectSuccessor, key, ledgerSequence); res) {
+            successor_keys_size.push_back(res->numRows());
             if (auto const result = res->template get<ripple::uint256>(); result) {
                 if (*result == kLAST_KEY)
                     return std::nullopt;

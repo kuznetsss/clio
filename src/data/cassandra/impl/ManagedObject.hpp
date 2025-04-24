@@ -33,8 +33,8 @@ public:
     template <typename DeleterCallable>
     ManagedObject(Managed* rawPtr, DeleterCallable deleter) : ptr_{rawPtr, deleter}
     {
-        if (rawPtr == nullptr)
-            throw std::runtime_error("Could not create DB object - got nullptr");
+        // if (rawPtr == nullptr)
+        //     throw std::runtime_error("Could not create DB object - got nullptr");
     }
 
     operator Managed*() const

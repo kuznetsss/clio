@@ -69,6 +69,12 @@ public:
         cass_statement_set_is_idempotent(*this, cass_true);
     }
 
+    void
+    setTracing(bool value)
+    {
+        cass_statement_set_tracing(*this, value ? cass_true : cass_false);
+    }
+
     /**
      * @brief Binds the given arguments to the statement.
      *
@@ -162,9 +168,11 @@ public:
  */
 class PreparedStatement : public ManagedObject<CassPrepared const> {
     static constexpr auto kDELETER = [](CassPrepared const* ptr) { cass_prepared_free(ptr); };
+    bool enableTracing_;
 
 public:
-    /* implicit */ PreparedStatement(CassPrepared const* ptr) : ManagedObject{ptr, kDELETER}
+    /* implicit */ PreparedStatement(CassPrepared const* ptr, bool enableTracing = false)
+        : ManagedObject{ptr, kDELETER}, enableTracing_(enableTracing)
     {
     }
 
@@ -179,6 +187,9 @@ public:
     bind(Args&&... args) const
     {
         Statement statement = cass_prepared_bind(*this);
+        if (enableTracing_) {
+            statement.setTracing(true);
+        }
         statement.bind<Args...>(std::forward<Args>(args)...);
         return statement;
     }

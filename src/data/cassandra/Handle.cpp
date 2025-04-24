@@ -153,12 +153,13 @@ Handle::asyncExecute(std::vector<StatementType> const& statements, std::function
 }
 
 Handle::PreparedStatementType
-Handle::prepare(std::string_view query) const
+Handle::prepare(std::string_view query, bool enableTracing) const
 {
     Handle::FutureType const future = cass_session_prepare_n(session_, query.data(), query.size());
     auto const rc = future.await();
-    if (rc)
-        return cass_future_get_prepared(future);
+    if (rc) {
+        return Handle::PreparedStatementType(cass_future_get_prepared(future), enableTracing);
+    }
 
     throw std::runtime_error(rc.error().message());
 }

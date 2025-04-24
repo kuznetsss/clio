@@ -5,6 +5,7 @@ target_sources(
   PRIVATE data/BackendFactoryTests.cpp
           data/cassandra/BackendTests.cpp
           data/cassandra/BaseTests.cpp
+          data/cassandra/Debug.cpp
           migration/cassandra/DBRawData.cpp
           migration/cassandra/CassandraMigrationManagerTests.cpp
           migration/cassandra/ExampleTransactionsMigrator.cpp

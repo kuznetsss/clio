@@ -502,16 +502,17 @@ public:
             ));
         }();
 
-        PreparedStatement updateClioNodeMessage = [this]() {
-            return handle_.get().prepare(fmt::format(
-                R"(
-                UPDATE {}
-                   SET message = ?
-                 WHERE node_id = ?
-                )",
-                qualifiedTableName(settingsProvider_.get(), "nodes_chat")
-            ));
-        }();
+        PreparedStatement updateClioNodeMessage{nullptr};
+        // = [this]() {
+        //     return handle_.get().prepare(fmt::format(
+        //         R"(
+        //         UPDATE {}
+        //            SET message = ?
+        //          WHERE node_id = ?
+        //         )",
+        //         qualifiedTableName(settingsProvider_.get(), "nodes_chat")
+        //     ));
+        // }();
 
         //
         // Select queries
@@ -828,15 +829,16 @@ public:
             ));
         }();
 
-        PreparedStatement selectClioNodesData = [this]() {
-            return handle_.get().prepare(fmt::format(
-                R"(
-                SELECT node_id, message
-                  FROM {}
-                )",
-                qualifiedTableName(settingsProvider_.get(), "nodes_chat")
-            ));
-        }();
+        PreparedStatement selectClioNodesData{nullptr};
+        // = [this]() {
+        //     return handle_.get().prepare(fmt::format(
+        //         R"(
+        //         SELECT node_id, message
+        //           FROM {}
+        //         )",
+        //         qualifiedTableName(settingsProvider_.get(), "nodes_chat")
+        //     ));
+        // }();
     };
 
     /**

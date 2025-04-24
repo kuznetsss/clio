@@ -310,7 +310,7 @@ public:
      * @throws std::runtime_error with underlying error description on failure
      */
     [[nodiscard]] PreparedStatementType
-    prepare(std::string_view query) const;
+    prepare(std::string_view query, bool enableTracing = false) const;
 };
 
 /**

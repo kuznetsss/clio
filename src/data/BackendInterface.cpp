@@ -311,6 +311,11 @@ BackendInterface::fetchLedgerPage(
     boost::asio::yield_context yield
 )
 {
+    auto logTime = [start = std::chrono::steady_clock::now()](std::string message) {
+        auto const now = std::chrono::steady_clock::now();
+        auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+        std::cout << elapsed << " ms | " << message << std::endl;
+    };
     LedgerPage page;
 
     std::vector<ripple::uint256> keys;
@@ -325,6 +330,7 @@ BackendInterface::fetchLedgerPage(
 
         std::uint32_t const seq = outOfOrder ? range_->maxSequence : ledgerSequence;
         auto succ = fetchSuccessorKey(curCursor, seq, yield);
+        // logTime("key");
 
         if (!succ) {
             reachedEnd = true;
@@ -332,8 +338,10 @@ BackendInterface::fetchLedgerPage(
             keys.push_back(*succ);
         }
     }
+    logTime(fmt::format("fetchSuccessorKeys done. Got {} keys", keys.size()));
 
     auto objects = fetchLedgerObjects(keys, ledgerSequence, yield);
+    logTime("fetchLedgerObjects done");
     for (size_t i = 0; i < objects.size(); ++i) {
         if (!objects[i].empty()) {
             page.objects.push_back({keys[i], std::move(objects[i])});
@@ -352,6 +360,8 @@ BackendInterface::fetchLedgerPage(
     }
     if (!keys.empty() && !reachedEnd)
         page.cursor = keys.back();
+
+    logTime("processing objects done");
 
     return page;
 }
