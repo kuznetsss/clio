@@ -94,32 +94,33 @@ func NewWebSocketClient(host string, port uint) (*WebSocketClient, error) {
 }
 
 // SendMessage sends a message to the WebSocket server
-func (ws *WebSocketClient) SendMessage(message string) (*ResponseData, error) {
-	defer ws.conn.Close()
-	start := time.Now()
-	err := ws.conn.WriteMessage(websocket.TextMessage, []byte(message))
-	if err != nil {
-		return nil, errors.New("Error sending ws message: " + err.Error())
-	}
+func (ws *WebSocketClient) SendMessage(message string) {
+	_ = ws.conn.WriteMessage(websocket.TextMessage, []byte(message))
 
-	var msg []byte
-	err = ws.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	if err != nil {
-		return nil, errors.New("Error setting timeout: " + err.Error())
-	}
-	_, msg, err = ws.conn.ReadMessage()
-	if err != nil {
-		return nil, errors.New("Error reading message: " + err.Error())
-	}
-	requestDuration := time.Since(start)
-	ws.conn.Close()
+	// var msg []byte
+	// err = ws.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	// if err != nil {
+	// 	return nil, errors.New("Error setting timeout: " + err.Error())
+	// }
+	// _, msg, err = ws.conn.ReadMessage()
+	// if err != nil {
+	// 	return nil, errors.New("Error reading message: " + err.Error())
+	// }
+	// requestDuration := time.Since(start)
+	// ws.conn.Close()
+	//
+	// var response JsonMap
+	// err = json.Unmarshal(msg, &response)
+	// if err != nil {
+	// 	return nil, errors.New("Error unmarshalling message: " + err.Error())
+	// }
+	// return &ResponseData{response, StatusCode(200), "WS Ok", requestDuration}, nil
+}
 
-	var response JsonMap
-	err = json.Unmarshal(msg, &response)
-	if err != nil {
-		return nil, errors.New("Error unmarshalling message: " + err.Error())
-	}
-	return &ResponseData{response, StatusCode(200), "WS Ok", requestDuration}, nil
+func (ws *WebSocketClient) ReadMessage() {
+	// for {
+	// 	_, _, _ = ws.conn.ReadMessage()
+	// }
 }
 
 func (ws *WebSocketClient) Close() error {

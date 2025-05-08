@@ -2,6 +2,7 @@ package trigger
 
 import (
 	"log"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"requests_gun/internal/ammo_provider"
@@ -18,6 +19,7 @@ func Fire(ammoProvider *ammo_provider.AmmoProvider, args *parse_args.CliArgs) {
 
 	wg := sync.WaitGroup{}
 	ticker := time.NewTicker(time.Second)
+
 	for {
 		select {
 		case s := <-interrupt:
@@ -27,18 +29,20 @@ func Fire(ammoProvider *ammo_provider.AmmoProvider, args *parse_args.CliArgs) {
 			return
 		case <-ticker.C:
 			statistics := statistics{startTime: time.Now(), printErrors: args.PrintErrors}
-			doShot := func() {
+			doShot := func(wsClient *request_maker.WebSocketClient) {
 				defer wg.Done()
-				bullet := ammoProvider.GetBullet()
 				if args.Ws {
-					wsClient, err := request_maker.NewWebSocketClient(args.Host, args.Port)
-					if err != nil {
-						statistics.add(nil, err)
-						return
+					for range 2 {
+						bullet := ammoProvider.GetBullet()
+						wsClient.SendMessage(bullet)
+						sleepTime := rand.Int32N(2000) + 1
+						time.Sleep(time.Millisecond * time.Duration(sleepTime))
 					}
-					responseData, err := wsClient.SendMessage(bullet)
-					statistics.add(responseData, err)
+					sleepTime := rand.Int32N(2000) + 1
+					time.Sleep(time.Millisecond * time.Duration(sleepTime))
+					wsClient.Close()
 				} else {
+					bullet := ammoProvider.GetBullet()
 					requestMaker := request_maker.NewHttp(args.Host, args.Port)
 					responseData, err := requestMaker.MakeRequest(bullet)
 					statistics.add(responseData, err)
@@ -47,9 +51,26 @@ func Fire(ammoProvider *ammo_provider.AmmoProvider, args *parse_args.CliArgs) {
 
 			secondStart := time.Now()
 			requestsNumber := uint(0)
-			for requestsNumber < args.TargetLoad && time.Since(secondStart) < time.Second {
+			// for requestsNumber < args.TargetLoad && time.Since(secondStart) < time.Second {
+
+			var wsClients []*request_maker.WebSocketClient
+			if args.Ws {
+				for range args.TargetLoad {
+					wsClient, err := request_maker.NewWebSocketClient(args.Host, args.Port)
+
+					if err != nil {
+						log.Printf("Failed to create WebSocket client: %v", err)
+						continue
+					}
+					go func() { wsClient.ReadMessage() }()
+					wsClients = append(wsClients, wsClient)
+				}
+				log.Printf("Created %d WebSocket connections", len(wsClients))
+			}
+
+			for _, wsClient := range wsClients {
 				wg.Add(1)
-				go doShot()
+				go doShot(wsClient)
 				requestsNumber++
 			}
 			wg.Wait()
