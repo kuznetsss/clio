@@ -118,9 +118,12 @@ func (ws *WebSocketClient) SendMessage(message string) {
 }
 
 func (ws *WebSocketClient) ReadMessage() {
-	// for {
-	// 	_, _, _ = ws.conn.ReadMessage()
-	// }
+	for {
+		_, _, err := ws.conn.ReadMessage()
+		if err != nil {
+			return
+		}
+	}
 }
 
 func (ws *WebSocketClient) Close() error {
