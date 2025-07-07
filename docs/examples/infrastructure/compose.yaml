@@ -18,3 +18,7 @@ services:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./grafana/dashboard_local.yaml:/etc/grafana/provisioning/dashboards/local.yaml
       - ./grafana/clio_dashboard.json:/var/lib/grafana/dashboards/clio_dashboard.json
+  pushgateway:
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
