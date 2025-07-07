@@ -22,6 +22,7 @@
 #include "util/OverloadSet.hpp"
 #include "util/Taggable.hpp"
 #include "util/build/Build.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 #include "web/ng/Connection.hpp"
 #include "web/ng/Error.hpp"
 #include "web/ng/Request.hpp"
@@ -60,7 +61,7 @@ public:
     using Connection::Connection;
 
     virtual std::optional<Error>
-    sendShared(std::shared_ptr<std::string> message, boost::asio::yield_context yield) = 0;
+    sendShared(std::shared_ptr<SubscriptionContextInterface::Message> message, boost::asio::yield_context yield) = 0;
 };
 
 template <typename StreamType>
@@ -68,7 +69,7 @@ class WsConnection : public WsConnectionBase {
     boost::beast::websocket::stream<StreamType> stream_;
     boost::beast::http::request<boost::beast::http::string_body> initialRequest_;
 
-    using MessageType = std::variant<Response, std::shared_ptr<std::string>>;
+    using MessageType = std::variant<Response, std::shared_ptr<SubscriptionContextInterface::Message>>;
     SendingQueue<MessageType> sendingQueue_;
 
     bool closed_{false};
@@ -88,8 +89,8 @@ public:
             boost::asio::const_buffer const buffer = std::visit(
                 util::OverloadSet{
                     [](Response const& r) -> boost::asio::const_buffer { return r.asWsResponse(); },
-                    [](std::shared_ptr<std::string> const& m) -> boost::asio::const_buffer {
-                        return boost::asio::buffer(*m);
+                    [](std::shared_ptr<SubscriptionContextInterface::Message> const& m) -> boost::asio::const_buffer {
+                        return boost::asio::buffer(m->data);
                     }
                 },
                 message
@@ -125,7 +126,10 @@ public:
     }
 
     std::optional<Error>
-    sendShared(std::shared_ptr<std::string> message, boost::asio::yield_context yield) override
+    sendShared(
+        std::shared_ptr<SubscriptionContextInterface::Message> message,
+        boost::asio::yield_context yield
+    ) override
     {
         return sendingQueue_.send(std::move(message), yield);
     }

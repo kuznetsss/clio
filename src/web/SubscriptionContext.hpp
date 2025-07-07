@@ -67,7 +67,7 @@ public:
      * @param message The message to send.
      */
     void
-    send(std::shared_ptr<std::string> message) override;
+    send(std::shared_ptr<Message> message) override;
 
     /**
      * @brief Connect a slot to onDisconnect connection signal.

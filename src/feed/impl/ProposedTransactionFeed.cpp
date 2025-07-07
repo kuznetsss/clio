@@ -22,6 +22,7 @@
 #include "feed/Types.hpp"
 #include "rpc/RPCHelpers.hpp"
 #include "util/log/Logger.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <boost/json/object.hpp>
 #include <boost/json/serialize.hpp>
@@ -39,11 +40,13 @@ void
 ProposedTransactionFeed::sub(SubscriberSharedPtr const& subscriber)
 {
     auto const weakPtr = std::weak_ptr(subscriber);
-    auto const added = signal_.connectTrackableSlot(subscriber, [weakPtr](std::shared_ptr<std::string> const& msg) {
-        if (auto connectionPtr = weakPtr.lock()) {
-            connectionPtr->send(msg);
+    auto const added = signal_.connectTrackableSlot(
+        subscriber, [weakPtr](std::shared_ptr<web::SubscriptionContextInterface::Message> const& msg) {
+            if (auto connectionPtr = weakPtr.lock()) {
+                connectionPtr->send(msg);
+            }
         }
-    });
+    );
 
     if (added) {
         LOG(logger_.info()) << subscriber->tag() << "Subscribed tx_proposed";
@@ -57,7 +60,7 @@ ProposedTransactionFeed::sub(ripple::AccountID const& account, SubscriberSharedP
 {
     auto const weakPtr = std::weak_ptr(subscriber);
     auto const added = accountSignal_.connectTrackableSlot(
-        subscriber, account, [this, weakPtr](std::shared_ptr<std::string> const& msg) {
+        subscriber, account, [this, weakPtr](std::shared_ptr<web::SubscriptionContextInterface::Message> const& msg) {
             if (auto connectionPtr = weakPtr.lock()) {
                 // Check if this connection already sent
                 if (notified_.contains(connectionPtr.get()))
@@ -90,7 +93,7 @@ ProposedTransactionFeed::unsub(ripple::AccountID const& account, SubscriberShare
 void
 ProposedTransactionFeed::pub(boost::json::object const& receivedTxJson)
 {
-    auto pubMsg = std::make_shared<std::string>(boost::json::serialize(receivedTxJson));
+    auto pubMsg = std::make_shared<web::SubscriptionContextInterface::Message>(boost::json::serialize(receivedTxJson));
 
     auto const transaction = receivedTxJson.at("transaction").as_object();
     auto const accounts = rpc::getAccountsFromTransaction(transaction);

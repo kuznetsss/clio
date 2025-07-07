@@ -30,6 +30,7 @@
 #include "util/async/AnyStrand.hpp"
 #include "util/log/Logger.hpp"
 #include "util/prometheus/Gauge.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/strand.hpp>
@@ -49,7 +50,7 @@ namespace feed::impl {
 
 class TransactionFeed {
     // Hold two versions of transaction messages
-    using AllVersionTransactionsType = std::array<std::shared_ptr<std::string>, 2>;
+    using AllVersionTransactionsType = std::array<std::shared_ptr<web::SubscriptionContextInterface::Message>, 2>;
 
     struct TransactionSlot {
         std::reference_wrapper<TransactionFeed> feed;

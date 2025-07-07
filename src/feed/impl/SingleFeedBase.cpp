@@ -24,6 +24,7 @@
 #include "feed/impl/Util.hpp"
 #include "util/async/AnyExecutionContext.hpp"
 #include "util/log/Logger.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -41,10 +42,12 @@ void
 SingleFeedBase::sub(SubscriberSharedPtr const& subscriber)
 {
     auto const weakPtr = std::weak_ptr(subscriber);
-    auto const added = signal_.connectTrackableSlot(subscriber, [weakPtr](std::shared_ptr<std::string> const& msg) {
-        if (auto connectionPtr = weakPtr.lock())
-            connectionPtr->send(msg);
-    });
+    auto const added = signal_.connectTrackableSlot(
+        subscriber, [weakPtr](std::shared_ptr<web::SubscriptionContextInterface::Message> const& msg) {
+            if (auto connectionPtr = weakPtr.lock())
+                connectionPtr->send(msg);
+        }
+    );
 
     if (added) {
         LOG(logger_.info()) << subscriber->tag() << "Subscribed " << name_;
@@ -65,7 +68,7 @@ void
 SingleFeedBase::pub(std::string msg)
 {
     [[maybe_unused]] auto task = strand_.execute([this, msg = std::move(msg)]() {
-        auto const msgPtr = std::make_shared<std::string>(msg);
+        auto const msgPtr = std::make_shared<web::SubscriptionContextInterface::Message>(msg);
         signal_.emit(msgPtr);
     });
 }

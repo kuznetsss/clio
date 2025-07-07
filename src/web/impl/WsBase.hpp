@@ -78,7 +78,7 @@ class WsBase : public ConnectionBase, public std::enable_shared_from_this<WsBase
     boost::beast::flat_buffer buffer_;
     std::reference_wrapper<dosguard::DOSGuardInterface> dosGuard_;
     bool sending_ = false;
-    std::queue<std::shared_ptr<std::string>> messages_;
+    std::queue<std::shared_ptr<SubscriptionContextInterface::Message>> messages_;
     std::shared_ptr<HandlerType> const handler_;
 
     SubscriptionContextPtr subscriptionContext_;
@@ -138,7 +138,7 @@ public:
     {
         sending_ = true;
         derived().ws().async_write(
-            boost::asio::buffer(messages_.front()->data(), messages_.front()->size()),
+            boost::asio::buffer(messages_.front()->data, messages_.front()->data.size()),
             boost::beast::bind_front_handler(&WsBase::onWrite, derived().shared_from_this())
         );
     }
@@ -177,7 +177,7 @@ public:
      * Be aware that the message length will not be added to the DOSGuard from this function.
      */
     void
-    send(std::shared_ptr<std::string> msg) override
+    send(std::shared_ptr<SubscriptionContextInterface::Message> msg) override
     {
         // Note: post used instead of dispatch to guarantee async behavior of wsFail and maybeSendNext
         boost::asio::post(
@@ -230,7 +230,7 @@ public:
             // Reserialize when we need to include this warning
             msg = boost::json::serialize(jsonResponse);
         }
-        auto sharedMsg = std::make_shared<std::string>(std::move(msg));
+        auto sharedMsg = std::make_shared<web::SubscriptionContextInterface::Message>(std::move(msg));
         send(std::move(sharedMsg));
     }
 
@@ -311,7 +311,7 @@ private:
             e["request"] = requestStr;
         }
 
-        this->send(std::make_shared<std::string>(boost::json::serialize(e)));
+        this->send(std::make_shared<web::SubscriptionContextInterface::Message>(boost::json::serialize(e)));
     }
 };
 }  // namespace web::impl

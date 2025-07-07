@@ -77,7 +77,7 @@ public:
      * @throws std::logic_error unless the function is overridden by a child class.
      */
     virtual void
-    send([[maybe_unused]] std::shared_ptr<std::string> msg)
+    send([[maybe_unused]] std::shared_ptr<SubscriptionContextInterface::Message> msg)
     {
         throw std::logic_error("web server can not send the shared payload");
     }

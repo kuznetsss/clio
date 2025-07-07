@@ -57,7 +57,7 @@ SubscriptionContext::~SubscriptionContext()
 }
 
 void
-SubscriptionContext::send(std::shared_ptr<std::string> message)
+SubscriptionContext::send(std::shared_ptr<web::SubscriptionContextInterface::Message> message)
 {
     if (disconnected_ or gotError_)
         return;

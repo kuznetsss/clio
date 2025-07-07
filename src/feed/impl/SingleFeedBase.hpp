@@ -25,6 +25,7 @@
 #include "util/async/AnyStrand.hpp"
 #include "util/log/Logger.hpp"
 #include "util/prometheus/Gauge.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/strand.hpp>
@@ -42,7 +43,7 @@ namespace feed::impl {
 class SingleFeedBase {
     util::async::AnyStrand strand_;
     std::reference_wrapper<util::prometheus::GaugeInt> subCount_;
-    TrackableSignal<Subscriber, std::shared_ptr<std::string> const&> signal_;
+    TrackableSignal<Subscriber, std::shared_ptr<web::SubscriptionContextInterface::Message> const&> signal_;
     util::Logger logger_{"Subscriptions"};
     std::string name_;
 

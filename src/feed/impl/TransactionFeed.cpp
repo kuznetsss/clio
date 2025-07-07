@@ -27,6 +27,7 @@
 #include "rpc/RPCHelpers.hpp"
 #include "util/Assert.hpp"
 #include "util/log/Logger.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <boost/asio/spawn.hpp>
 #include <boost/json/object.hpp>
@@ -245,8 +246,8 @@ TransactionFeed::pub(
     };
 
     AllVersionTransactionsType allVersionsMsgs{
-        std::make_shared<std::string>(boost::json::serialize(genJsonByVersion(1u))),
-        std::make_shared<std::string>(boost::json::serialize(genJsonByVersion(2u)))
+        std::make_shared<web::SubscriptionContextInterface::Message>(boost::json::serialize(genJsonByVersion(1u))),
+        std::make_shared<web::SubscriptionContextInterface::Message>(boost::json::serialize(genJsonByVersion(2u)))
     };
 
     auto const affectedAccountsFlat = meta->getAffectedAccounts();

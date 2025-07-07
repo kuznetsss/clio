@@ -20,6 +20,9 @@
 #pragma once
 
 #include "util/Taggable.hpp"
+#include "util/prometheus/Gauge.hpp"
+#include "util/prometheus/Label.hpp"
+#include "util/prometheus/Prometheus.hpp"
 
 #include <boost/signals2/signal.hpp>
 #include <boost/signals2/variadic_signal.hpp>
@@ -28,6 +31,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace web {
 
@@ -43,13 +47,31 @@ public:
      */
     using util::Taggable::Taggable;
 
+    struct Message {
+        Message(std::string m) : data(std::move(m))
+        {
+            counter_.get() += 1;
+        }
+
+        ~Message()
+        {
+            counter_.get() -= 1;
+        }
+
+        std::string data;
+
+    private:
+        std::reference_wrapper<util::prometheus::GaugeInt> counter_ =
+            PrometheusService::gaugeInt("subscription_messages_total_count", util::prometheus::Labels{});
+    };
+
     /**
      * @brief Send message to the client
      *
      * @param message The message to send.
      */
     virtual void
-    send(std::shared_ptr<std::string> message) = 0;
+    send(std::shared_ptr<Message> message) = 0;
 
     /**
      * @brief Alias for on disconnect slot.

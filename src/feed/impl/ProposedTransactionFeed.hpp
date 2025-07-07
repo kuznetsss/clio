@@ -27,6 +27,7 @@
 #include "util/async/AnyStrand.hpp"
 #include "util/log/Logger.hpp"
 #include "util/prometheus/Gauge.hpp"
+#include "web/SubscriptionContextInterface.hpp"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/strand.hpp>
@@ -57,8 +58,9 @@ class ProposedTransactionFeed {
     std::reference_wrapper<util::prometheus::GaugeInt> subAllCount_;
     std::reference_wrapper<util::prometheus::GaugeInt> subAccountCount_;
 
-    TrackableSignalMap<ripple::AccountID, Subscriber, std::shared_ptr<std::string>> accountSignal_;
-    TrackableSignal<Subscriber, std::shared_ptr<std::string>> signal_;
+    TrackableSignalMap<ripple::AccountID, Subscriber, std::shared_ptr<web::SubscriptionContextInterface::Message>>
+        accountSignal_;
+    TrackableSignal<Subscriber, std::shared_ptr<web::SubscriptionContextInterface::Message>> signal_;
 
 public:
     /**
