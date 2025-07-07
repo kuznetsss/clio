@@ -49,10 +49,12 @@ SubscriptionContext::SubscriptionContext(
     , yield_(yield)
     , errorHandler_(std::move(errorHandler))
 {
+    counter_.get() += 1;
 }
 
 SubscriptionContext::~SubscriptionContext()
 {
+    counter_.get() -= 1;
     ASSERT(disconnected_, "SubscriptionContext must be disconnected before destroying");
 }
 

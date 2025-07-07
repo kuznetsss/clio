@@ -61,8 +61,10 @@ public:
         std::string data;
 
     private:
-        std::reference_wrapper<util::prometheus::GaugeInt> counter_ =
-            PrometheusService::gaugeInt("subscription_messages_total_count", util::prometheus::Labels{});
+        std::reference_wrapper<util::prometheus::GaugeInt> counter_ = PrometheusService::gaugeInt(
+            "instances_total_number",
+            util::prometheus::Labels{{{"class", "SubscriptionMessage"}}}
+        );
     };
 
     /**

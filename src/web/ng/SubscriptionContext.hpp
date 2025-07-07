@@ -21,6 +21,9 @@
 
 #include "util/CoroutineGroup.hpp"
 #include "util/Taggable.hpp"
+#include "util/prometheus/Gauge.hpp"
+#include "util/prometheus/Label.hpp"
+#include "util/prometheus/Prometheus.hpp"
 #include "web/SubscriptionContextInterface.hpp"
 #include "web/ng/Connection.hpp"
 #include "web/ng/Error.hpp"
@@ -69,6 +72,10 @@ private:
      * from the api version in Context, which is only used for the current request.
      */
     std::atomic_uint32_t apiSubversion_ = 0u;
+    std::reference_wrapper<util::prometheus::GaugeInt> counter_ = PrometheusService::gaugeInt(
+        "instances_total_number",
+        util::prometheus::Labels{{{"class", "SubscriptionManager"}}}
+    );
 
 public:
     /**
