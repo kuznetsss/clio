@@ -125,7 +125,8 @@ public:
     {
         LOG(log_.info()) << "Attempting to publish ledger = " << ledgerSequence;
         size_t numAttempts = 0;
-        while (not state_.get().isStopping) {
+        // TODO: this infinite loop will be fixed in https://github.com/XRPLF/clio/issues/2833
+        while (true) {
             auto range = backend_->hardFetchLedgerRangeNoThrow();
 
             if (!range || range->maxSequence < ledgerSequence) {
