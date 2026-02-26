@@ -185,6 +185,13 @@ public:
         std::shared_ptr<SystemState> state
     );
 
+    ETLService(ETLService&&) = delete;
+    ETLService(ETLService const&) = delete;
+    ETLService
+    operator=(ETLService&&) = delete;
+    ETLService
+    operator=(ETLService const&) = delete;
+
     ~ETLService() override;
 
     void
