@@ -80,7 +80,7 @@ TEST_F(ClioNodeTest, Deserialization)
     EXPECT_NE(node.uuid, nullptr);
     EXPECT_EQ(*node.uuid, boost::uuids::uuid{});
     EXPECT_EQ(node.updateTime, updateTime);
-    EXPECT_EQ(node.dbRole, ClioNode::DbRole::LoadingCache);
+    EXPECT_EQ(node.dbRole, ClioNode::DbRole::NotLoadedCache);
 }
 
 TEST_F(ClioNodeTest, DeserializationInvalidTime)
@@ -110,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(
     ClioNodeDbRoleTest,
     testing::Values(
         ClioNodeDbRoleTestBundle{.testName = "ReadOnly", .role = ClioNode::DbRole::ReadOnly},
-        ClioNodeDbRoleTestBundle{.testName = "LoadingCache", .role = ClioNode::DbRole::LoadingCache},
+        ClioNodeDbRoleTestBundle{.testName = "LoadingCache", .role = ClioNode::DbRole::NotLoadedCache},
         ClioNodeDbRoleTestBundle{.testName = "NotWriter", .role = ClioNode::DbRole::NotWriter},
         ClioNodeDbRoleTestBundle{.testName = "Writer", .role = ClioNode::DbRole::Writer},
         ClioNodeDbRoleTestBundle{.testName = "Fallback", .role = ClioNode::DbRole::Fallback}
@@ -156,7 +156,7 @@ struct ClioNodeFromTestBundle {
     std::string testName;
     bool readOnly;
     bool fallback;
-    bool loadingCache;
+    bool hasLoadedCache;
     bool writing;
     ClioNode::DbRole expectedRole;
 };
@@ -175,7 +175,7 @@ INSTANTIATE_TEST_SUITE_P(
             .testName = "ReadOnly",
             .readOnly = true,
             .fallback = false,
-            .loadingCache = false,
+            .hasLoadedCache = true,
             .writing = false,
             .expectedRole = ClioNode::DbRole::ReadOnly
         },
@@ -183,7 +183,7 @@ INSTANTIATE_TEST_SUITE_P(
             .testName = "Fallback",
             .readOnly = false,
             .fallback = true,
-            .loadingCache = false,
+            .hasLoadedCache = true,
             .writing = false,
             .expectedRole = ClioNode::DbRole::Fallback
         },
@@ -191,15 +191,15 @@ INSTANTIATE_TEST_SUITE_P(
             .testName = "LoadingCache",
             .readOnly = false,
             .fallback = false,
-            .loadingCache = true,
+            .hasLoadedCache = false,
             .writing = false,
-            .expectedRole = ClioNode::DbRole::LoadingCache
+            .expectedRole = ClioNode::DbRole::NotLoadedCache
         },
         ClioNodeFromTestBundle{
             .testName = "NotWriterNotReadOnly",
             .readOnly = false,
             .fallback = false,
-            .loadingCache = false,
+            .hasLoadedCache = true,
             .writing = false,
             .expectedRole = ClioNode::DbRole::NotWriter
         },
@@ -207,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(
             .testName = "Writer",
             .readOnly = false,
             .fallback = false,
-            .loadingCache = false,
+            .hasLoadedCache = true,
             .writing = true,
             .expectedRole = ClioNode::DbRole::Writer
         }
@@ -223,8 +223,8 @@ TEST_P(ClioNodeFromTest, FromWriterState)
     if (not param.readOnly) {
         EXPECT_CALL(writerState, isFallback()).WillOnce(testing::Return(param.fallback));
         if (not param.fallback) {
-            EXPECT_CALL(writerState, hasLoadedCache()).WillOnce(testing::Return(param.loadingCache));
-            if (not param.loadingCache) {
+            EXPECT_CALL(writerState, hasLoadedCache()).WillOnce(testing::Return(param.hasLoadedCache));
+            if (param.hasLoadedCache) {
                 EXPECT_CALL(writerState, isWriting()).WillOnce(testing::Return(param.writing));
             }
         }

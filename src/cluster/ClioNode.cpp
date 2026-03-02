@@ -56,8 +56,8 @@ ClioNode::from(ClioNode::Uuid uuid, etl::WriterStateInterface const& writerState
         if (writerState.isFallback()) {
             return ClioNode::DbRole::Fallback;
         }
-        if (writerState.hasLoadedCache()) {
-            return ClioNode::DbRole::LoadingCache;
+        if (not writerState.hasLoadedCache()) {
+            return ClioNode::DbRole::NotLoadedCache;
         }
 
         return writerState.isWriting() ? ClioNode::DbRole::Writer : ClioNode::DbRole::NotWriter;

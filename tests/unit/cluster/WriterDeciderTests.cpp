@@ -271,14 +271,14 @@ INSTANTIATE_TEST_SUITE_P(
         WriterDeciderTestParams{
             .testName = "SelfIsLoadingCacheOtherIsWriter",
             .selfUuidValue = 0x01,
-            .nodes = {{0x01, ClioNode::DbRole::LoadingCache}, {0x02, ClioNode::DbRole::Writer}},
+            .nodes = {{0x01, ClioNode::DbRole::NotLoadedCache}, {0x02, ClioNode::DbRole::Writer}},
             .expectedAction = ExpectedAction::GiveUpWriting
         },
         WriterDeciderTestParams{
             .testName = "OtherNodeIsLoadingCacheSkipToNextWriter",
             .selfUuidValue = 0x02,
             .nodes =
-                {{0x01, ClioNode::DbRole::LoadingCache},
+                {{0x01, ClioNode::DbRole::NotLoadedCache},
                  {0x02, ClioNode::DbRole::Writer},
                  {0x03, ClioNode::DbRole::NotWriter}},
             .expectedAction = ExpectedAction::StartWriting
@@ -286,7 +286,7 @@ INSTANTIATE_TEST_SUITE_P(
         WriterDeciderTestParams{
             .testName = "AllNodesLoadingCacheNoActionTaken",
             .selfUuidValue = 0x01,
-            .nodes = {{0x01, ClioNode::DbRole::LoadingCache}, {0x02, ClioNode::DbRole::LoadingCache}},
+            .nodes = {{0x01, ClioNode::DbRole::NotLoadedCache}, {0x02, ClioNode::DbRole::NotLoadedCache}},
             .expectedAction = ExpectedAction::NoAction
         },
         WriterDeciderTestParams{
@@ -294,7 +294,7 @@ INSTANTIATE_TEST_SUITE_P(
             .selfUuidValue = 0x03,
             .nodes =
                 {{0x01, ClioNode::DbRole::ReadOnly},
-                 {0x02, ClioNode::DbRole::LoadingCache},
+                 {0x02, ClioNode::DbRole::NotLoadedCache},
                  {0x03, ClioNode::DbRole::Writer},
                  {0x04, ClioNode::DbRole::NotWriter}},
             .expectedAction = ExpectedAction::StartWriting
@@ -303,8 +303,8 @@ INSTANTIATE_TEST_SUITE_P(
             .testName = "LoadingCacheBeforeWriterSkipsLoadingCache",
             .selfUuidValue = 0x04,
             .nodes =
-                {{0x01, ClioNode::DbRole::LoadingCache},
-                 {0x02, ClioNode::DbRole::LoadingCache},
+                {{0x01, ClioNode::DbRole::NotLoadedCache},
+                 {0x02, ClioNode::DbRole::NotLoadedCache},
                  {0x03, ClioNode::DbRole::Writer},
                  {0x04, ClioNode::DbRole::NotWriter}},
             .expectedAction = ExpectedAction::GiveUpWriting

@@ -52,7 +52,7 @@ struct ClioNode {
      * from the cluster communication mechanism to the slower but more reliable
      * database-based conflict detection mechanism.
      */
-    enum class DbRole { ReadOnly = 0, LoadingCache = 1, NotWriter = 2, Writer = 3, Fallback = 4, MAX = 4 };
+    enum class DbRole { ReadOnly = 0, NotLoadedCache = 1, NotWriter = 2, Writer = 3, Fallback = 4, MAX = 4 };
 
     using Uuid = std::shared_ptr<boost::uuids::uuid>;
     using CUuid = std::shared_ptr<boost::uuids::uuid const>;
