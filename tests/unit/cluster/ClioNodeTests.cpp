@@ -223,7 +223,7 @@ TEST_P(ClioNodeFromTest, FromWriterState)
     if (not param.readOnly) {
         EXPECT_CALL(writerState, isFallback()).WillOnce(testing::Return(param.fallback));
         if (not param.fallback) {
-            EXPECT_CALL(writerState, isLoadingCache()).WillOnce(testing::Return(param.loadingCache));
+            EXPECT_CALL(writerState, hasLoadedCache()).WillOnce(testing::Return(param.loadingCache));
             if (not param.loadingCache) {
                 EXPECT_CALL(writerState, isWriting()).WillOnce(testing::Return(param.writing));
             }

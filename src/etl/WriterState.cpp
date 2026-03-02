@@ -73,9 +73,9 @@ WriterState::isFallback() const
 }
 
 bool
-WriterState::isLoadingCache() const
+WriterState::hasLoadedCache() const
 {
-    return systemState_->isLoadingCache;
+    return systemState_->hasLoadedCache;
 }
 
 std::unique_ptr<WriterStateInterface>

@@ -217,7 +217,7 @@ ETLService::run()
 
         startMonitor(nextSequence);
 
-        state_->isLoadingCache = false;
+        state_->hasLoadedCache = false;
 
         // If we are a writer as the result of loading the initial ledger - start loading
         if (state_->isWriting)

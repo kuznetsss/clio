@@ -119,25 +119,25 @@ TEST_F(WriterStateTest, IsReadOnlyReturnsSystemStateValue)
 
 TEST_F(WriterStateTest, IsLoadingCacheReturnsSystemStateValue)
 {
-    systemState->isLoadingCache = false;
-    EXPECT_FALSE(writerState.isLoadingCache());
+    systemState->hasLoadedCache = false;
+    EXPECT_FALSE(writerState.hasLoadedCache());
 
-    systemState->isLoadingCache = true;
-    EXPECT_TRUE(writerState.isLoadingCache());
+    systemState->hasLoadedCache = true;
+    EXPECT_TRUE(writerState.hasLoadedCache());
 }
 
 TEST_F(WriterStateTest, CloneCreatesNewInstanceWithSameSystemState)
 {
     systemState->isWriting = true;
     systemState->isStrictReadonly = true;
-    systemState->isLoadingCache = false;
+    systemState->hasLoadedCache = false;
 
     auto cloned = writerState.clone();
 
     ASSERT_NE(cloned.get(), &writerState);
     EXPECT_TRUE(cloned->isWriting());
     EXPECT_TRUE(cloned->isReadOnly());
-    EXPECT_FALSE(cloned->isLoadingCache());
+    EXPECT_FALSE(cloned->hasLoadedCache());
 }
 
 TEST_F(WriterStateTest, ClonedInstanceSharesSystemState)

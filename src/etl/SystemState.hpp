@@ -38,7 +38,7 @@ namespace etl {
 struct SystemState {
     SystemState()
     {
-        isLoadingCache = true;
+        hasLoadedCache = true;
     }
 
     /**
@@ -75,10 +75,10 @@ struct SystemState {
     );
 
     /** @brief Whether the process is still loading cache after startup. */
-    util::prometheus::Bool isLoadingCache = PrometheusService::boolMetric(
-        "etl_loading_cache",
+    util::prometheus::Bool hasLoadedCache = PrometheusService::boolMetric(
+        "etl_has_loaded_cache",
         util::prometheus::Labels{},
-        "Whether etl is loading cache after clio startup"
+        "Whether etl has already loaded cache after clio startup"
     );
 
     /**

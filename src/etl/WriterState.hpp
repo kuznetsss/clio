@@ -93,7 +93,7 @@ public:
      * @return true if clio is still loading cache, false otherwise.
      */
     [[nodiscard]] virtual bool
-    isLoadingCache() const = 0;
+    hasLoadedCache() const = 0;
 
     /**
      * @brief Create a clone of this writer state.
@@ -177,7 +177,7 @@ public:
      * @return true if clio is still loading cache, false otherwise.
      */
     bool
-    isLoadingCache() const override;
+    hasLoadedCache() const override;
 
     /**
      * @brief Create a clone of this writer state.
