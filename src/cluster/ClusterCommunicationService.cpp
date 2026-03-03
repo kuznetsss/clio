@@ -20,7 +20,10 @@
 #include "cluster/ClusterCommunicationService.hpp"
 
 #include "data/BackendInterface.hpp"
+#include "etl/CacheLoadingState.hpp"
+#include "etl/SystemState.hpp"
 #include "etl/WriterState.hpp"
+#include "util/config/ConfigDefinition.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -32,10 +35,11 @@ namespace cluster {
 ClusterCommunicationService::ClusterCommunicationService(
     std::shared_ptr<data::BackendInterface> backend,
     std::unique_ptr<etl::WriterStateInterface> writerState,
+    std::unique_ptr<etl::CacheLoadingStateInterface> cacheLoadingState,
     std::chrono::steady_clock::duration readInterval,
     std::chrono::steady_clock::duration writeInterval
 )
-    : backend_(ctx_, std::move(backend), writerState->clone(), readInterval, writeInterval)
+    : backend_(ctx_, std::move(backend), writerState->clone(), cacheLoadingState->clone(), readInterval, writeInterval)
     , writerDecider_(ctx_, std::move(writerState))
 {
 }
@@ -61,6 +65,22 @@ void
 ClusterCommunicationService::stop()
 {
     backend_.stop();
+}
+
+ClusterCommunicationService
+ClusterCommunicationService::make(
+    util::config::ClioConfigDefinition const& config,
+    std::shared_ptr<data::BackendInterface> backend,
+    std::shared_ptr<etl::SystemState> systemState
+)
+{
+    auto writerState = std::make_unique<etl::WriterState>(systemState);
+    auto cacheLoadingState = std::make_unique<etl::CacheLoadingState>(std::move(systemState));
+    if (config.get<bool>("cache.limit_load_in_cluster")) {
+        cacheLoadingState->allowCacheLoading();
+    }
+
+    return ClusterCommunicationService{std::move(backend), std::move(writerState), std::move(cacheLoadingState)};
 }
 
 }  // namespace cluster

@@ -42,40 +42,49 @@ public:
 
     virtual void
     allowCacheLoading() = 0;
+
+    virtual std::unique_ptr<CacheLoadingStateInterface>
+    clone() const = 0;
 };
 
-class CacheLoadingState {
-    std::atomic_bool loadingAllowed_{false};
+class CacheLoadingState : public CacheLoadingStateInterface {
+    std::shared_ptr<std::atomic_bool> loadingAllowed_ = std::make_shared<std::atomic_bool>(false);
     std::shared_ptr<SystemState const> state_;
 
 public:
-    explicit CacheLoadingState(std::shared_ptr<SystemState> state) : state_(std::move(state))
+    explicit CacheLoadingState(std::shared_ptr<SystemState const> state) : state_(std::move(state))
     {
     }
 
     bool
-    hasLoadedCache() const
+    hasLoadedCache() const override
     {
         return state_->hasLoadedCache;
     }
 
     bool
-    isLoadingCache() const
+    isLoadingCache() const override
     {
         return state_->isLoadingCache;
     }
 
     void
-    waitForAllowedCacheLoading() const
+    waitForAllowedCacheLoading() const override
     {
-        loadingAllowed_.wait(false);
+        loadingAllowed_->wait(false);
     }
 
     void
-    allowCacheLoading()
+    allowCacheLoading() override
     {
-        loadingAllowed_ = true;
-        loadingAllowed_.notify_all();
+        *loadingAllowed_ = true;
+        loadingAllowed_->notify_all();
+    }
+
+    std::unique_ptr<CacheLoadingStateInterface>
+    clone() const override
+    {
+        return std::make_unique<CacheLoadingState>(state_);
     }
 };
 

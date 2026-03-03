@@ -19,6 +19,7 @@
 
 #include "cluster/ClioNode.hpp"
 
+#include "etl/CacheLoadingState.hpp"
 #include "etl/WriterState.hpp"
 #include "util/TimeUtils.hpp"
 
@@ -42,12 +43,18 @@ namespace {
 struct JsonFields {
     static constexpr std::string_view const kUPDATE_TIME = "update_time";
     static constexpr std::string_view const kDB_ROLE = "db_role";
+    static constexpr std::string_view const kIS_LOADING_CACHE = "is_loading_cache";
+    static constexpr std::string_view const kHAS_LOADED_CACHE = "has_loaded_cache";
 };
 
 }  // namespace
 
 ClioNode
-ClioNode::from(ClioNode::Uuid uuid, etl::WriterStateInterface const& writerState)
+ClioNode::from(
+    ClioNode::Uuid uuid,
+    etl::WriterStateInterface const& writerState,
+    etl::CacheLoadingStateInterface const& cacheLoadingState
+)
 {
     auto const dbRole = [&writerState]() {
         if (writerState.isReadOnly()) {
@@ -62,7 +69,13 @@ ClioNode::from(ClioNode::Uuid uuid, etl::WriterStateInterface const& writerState
 
         return writerState.isWriting() ? ClioNode::DbRole::Writer : ClioNode::DbRole::NotWriter;
     }();
-    return ClioNode{.uuid = std::move(uuid), .updateTime = std::chrono::system_clock::now(), .dbRole = dbRole};
+    return ClioNode{
+        .uuid = std::move(uuid),
+        .updateTime = std::chrono::system_clock::now(),
+        .dbRole = dbRole,
+        .isLoadingCache = cacheLoadingState.isLoadingCache(),
+        .hasLoadedCache = cacheLoadingState.hasLoadedCache()
+    };
 }
 
 void
@@ -70,7 +83,9 @@ tag_invoke(boost::json::value_from_tag, boost::json::value& jv, ClioNode const& 
 {
     jv = {
         {JsonFields::kUPDATE_TIME, util::systemTpToUtcStr(node.updateTime, ClioNode::kTIME_FORMAT)},
-        {JsonFields::kDB_ROLE, static_cast<int64_t>(node.dbRole)}
+        {JsonFields::kDB_ROLE, static_cast<int64_t>(node.dbRole)},
+        {JsonFields::kIS_LOADING_CACHE, node.isLoadingCache},
+        {JsonFields::kHAS_LOADED_CACHE, node.hasLoadedCache}
     };
 }
 
@@ -87,11 +102,23 @@ tag_invoke(boost::json::value_to_tag<ClioNode>, boost::json::value const& jv)
     if (dbRoleValue > static_cast<int64_t>(ClioNode::DbRole::MAX))
         throw std::runtime_error("Invalid db_role value");
 
+    // For backward compatibility during Clio update assume that all nodes has already loaded cache
+    bool isLoadingCache = false;
+    if (jv.as_object().contains(JsonFields::kIS_LOADING_CACHE)) {
+        isLoadingCache = jv.as_object().at(JsonFields::kIS_LOADING_CACHE).as_bool();
+    }
+    bool hasLoadedCache = true;
+    if (jv.as_object().contains(JsonFields::kHAS_LOADED_CACHE)) {
+        hasLoadedCache = jv.as_object().at(JsonFields::kHAS_LOADED_CACHE).as_bool();
+    }
+
     return ClioNode{
         // Json data doesn't contain uuid so leaving it empty here. It will be filled outside of this parsing
         .uuid = std::make_shared<boost::uuids::uuid>(),
         .updateTime = updateTime.value(),
-        .dbRole = static_cast<ClioNode::DbRole>(dbRoleValue)
+        .dbRole = static_cast<ClioNode::DbRole>(dbRoleValue),
+        .isLoadingCache = isLoadingCache,
+        .hasLoadedCache = hasLoadedCache
     };
 }
 

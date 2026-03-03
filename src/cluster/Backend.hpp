@@ -22,6 +22,7 @@
 #include "cluster/ClioNode.hpp"
 #include "cluster/impl/RepeatedTask.hpp"
 #include "data/BackendInterface.hpp"
+#include "etl/CacheLoadingState.hpp"
 #include "etl/WriterState.hpp"
 #include "util/log/Logger.hpp"
 
@@ -62,6 +63,7 @@ private:
 
     std::shared_ptr<data::BackendInterface> backend_;
     std::unique_ptr<etl::WriterStateInterface const> writerState_;
+    std::unique_ptr<etl::CacheLoadingStateInterface const> cacheLoadingState_;
 
     impl::RepeatedTask<boost::asio::thread_pool> readerTask_;
     impl::RepeatedTask<boost::asio::thread_pool> writerTask_;
@@ -84,6 +86,7 @@ public:
         boost::asio::thread_pool& ctx,
         std::shared_ptr<data::BackendInterface> backend,
         std::unique_ptr<etl::WriterStateInterface const> writerState,
+        std::unique_ptr<etl::CacheLoadingStateInterface const> cacheLoadingState,
         std::chrono::steady_clock::duration readInterval,
         std::chrono::steady_clock::duration writeInterval
     );

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "etl/CacheLoadingState.hpp"
 #include "etl/WriterState.hpp"
 
 #include <boost/json/conversion.hpp>
@@ -44,6 +45,7 @@ struct ClioNode {
      *
      * Roles are used to coordinate which node writes to the database:
      * - ReadOnly: Node is configured to never write (strict read-only mode)
+     * - NotLoadedCache
      * - NotWriter: Node can write but is currently not the designated writer
      * - Writer: Node is actively writing to the database
      * - Fallback: Node is using the fallback writer decision mechanism
@@ -60,6 +62,8 @@ struct ClioNode {
     Uuid uuid;                                         ///< The UUID of the node.
     std::chrono::system_clock::time_point updateTime;  ///< The time the data about the node was last updated.
     DbRole dbRole;                                     ///< The database role of the node
+    bool isLoadingCache;
+    bool hasLoadedCache;
 
     /**
      * @brief Create a ClioNode from writer state.
@@ -69,7 +73,7 @@ struct ClioNode {
      * @return A ClioNode with the current time and role derived from writerState
      */
     static ClioNode
-    from(Uuid uuid, etl::WriterStateInterface const& writerState);
+    from(Uuid uuid, etl::WriterStateInterface const& writerState, etl::CacheLoadingStateInterface const& cacheLoadingState);
 };
 
 void
