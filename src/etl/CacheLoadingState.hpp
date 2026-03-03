@@ -23,69 +23,127 @@
 
 #include <atomic>
 #include <memory>
-#include <utility>
 
 namespace etl {
 
+/**
+ * @brief Interface for managing cache loading state in the ETL subsystem.
+ *
+ * This interface provides methods to query and control whether the ETL process
+ * has loaded its cache. Implementations coordinate with the ETL system state
+ * to manage cache loading synchronization.
+ */
 class CacheLoadingStateInterface {
 public:
     virtual ~CacheLoadingStateInterface() = default;
 
-    virtual bool
+    /**
+     * @brief Check if the cache has been fully loaded after startup.
+     * @return true if the cache has finished loading, false otherwise
+     */
+    [[nodiscard]] virtual bool
     hasLoadedCache() const = 0;
 
-    virtual bool
+    /**
+     * @brief Check if the cache is currently in the process of loading.
+     * @return true if the cache is currently loading, false otherwise
+     */
+    [[nodiscard]] virtual bool
     isLoadingCache() const = 0;
 
+    /**
+     * @brief Block until cache loading is permitted.
+     *
+     * Waits until allowCacheLoading() has been called, then returns.
+     * This is used to synchronize cache loading with cluster coordination.
+     */
     virtual void
     waitForAllowedCacheLoading() const = 0;
 
+    /**
+     * @brief Allow cache loading to proceed.
+     *
+     * Signals any threads blocked in waitForAllowedCacheLoading() that they
+     * may proceed with loading the cache.
+     */
     virtual void
     allowCacheLoading() = 0;
 
-    virtual std::unique_ptr<CacheLoadingStateInterface>
+    /**
+     * @brief Create a clone of this cache loading state.
+     *
+     * Creates a new instance that shares the same underlying system state.
+     * This is used when spawning operations that need their own state instance
+     * while sharing the same system state.
+     *
+     * @note The clone has its own loadingAllowed flag, independent of the original.
+     *
+     * @return A unique pointer to the cloned state.
+     */
+    [[nodiscard]] virtual std::unique_ptr<CacheLoadingStateInterface>
     clone() const = 0;
 };
 
+/**
+ * @brief Implementation of CacheLoadingStateInterface that manages cache loading state.
+ *
+ * This class coordinates with SystemState to track whether the ETL cache has been
+ * loaded after startup. It also provides a mechanism to gate cache loading via
+ * allowCacheLoading() and waitForAllowedCacheLoading(), which is used in cluster
+ * deployments to prevent all nodes from loading cache simultaneously.
+ */
 class CacheLoadingState : public CacheLoadingStateInterface {
     std::shared_ptr<std::atomic_bool> loadingAllowed_ = std::make_shared<std::atomic_bool>(false);
     std::shared_ptr<SystemState const> state_;
 
 public:
-    explicit CacheLoadingState(std::shared_ptr<SystemState const> state) : state_(std::move(state))
-    {
-    }
+    /**
+     * @brief Construct a CacheLoadingState with the given system state.
+     * @param state Shared pointer to the (const) system state for coordination
+     */
+    explicit CacheLoadingState(std::shared_ptr<SystemState const> state);
 
-    bool
-    hasLoadedCache() const override
-    {
-        return state_->hasLoadedCache;
-    }
+    /**
+     * @brief Check if the cache has been fully loaded after startup.
+     * @return true if the cache has finished loading, false otherwise
+     */
+    [[nodiscard]] bool
+    hasLoadedCache() const override;
 
-    bool
-    isLoadingCache() const override
-    {
-        return state_->isLoadingCache;
-    }
+    /**
+     * @brief Check if the cache is currently in the process of loading.
+     * @return true if the cache is currently loading, false otherwise
+     */
+    [[nodiscard]] bool
+    isLoadingCache() const override;
 
+    /**
+     * @brief Block until cache loading is permitted.
+     *
+     * Uses atomic wait to avoid busy-waiting. Blocks until allowCacheLoading() is called.
+     */
     void
-    waitForAllowedCacheLoading() const override
-    {
-        loadingAllowed_->wait(false);
-    }
+    waitForAllowedCacheLoading() const override;
 
+    /**
+     * @brief Allow cache loading to proceed.
+     *
+     * Atomically sets the allowed flag and notifies all threads waiting in
+     * waitForAllowedCacheLoading().
+     */
     void
-    allowCacheLoading() override
-    {
-        *loadingAllowed_ = true;
-        loadingAllowed_->notify_all();
-    }
+    allowCacheLoading() override;
 
-    std::unique_ptr<CacheLoadingStateInterface>
-    clone() const override
-    {
-        return std::make_unique<CacheLoadingState>(state_);
-    }
+    /**
+     * @brief Create a clone sharing the same system state.
+     *
+     * The clone shares the same SystemState but has its own loadingAllowed flag,
+     * so allowing on the original does not unblock a clone's wait.
+     *
+     * @return A unique pointer to the cloned state.
+     */
+    [[nodiscard]] std::unique_ptr<CacheLoadingStateInterface>
+    clone() const override;
 };
 
 }  // namespace etl

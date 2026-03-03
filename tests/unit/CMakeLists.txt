@@ -27,6 +27,7 @@ target_sources(clio_tests
                        cluster/RepeatedTaskTests.cpp
                        cluster/WriterDeciderTests.cpp
                        # ETL
+                       etl/CacheLoadingStateTests.cpp
                        etl/AmendmentBlockHandlerTests.cpp
                        etl/CacheLoaderSettingsTests.cpp
                        etl/CacheLoaderTests.cpp

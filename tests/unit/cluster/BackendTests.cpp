@@ -21,6 +21,7 @@
 #include "cluster/ClioNode.hpp"
 #include "data/BackendInterface.hpp"
 #include "util/MockBackendTestFixture.hpp"
+#include "util/MockCacheLoadingState.hpp"
 #include "util/MockPrometheus.hpp"
 #include "util/MockWriterState.hpp"
 
@@ -51,8 +52,13 @@ struct ClusterBackendTest : util::prometheus::WithPrometheus, MockBackendTestStr
     }
 
     boost::asio::thread_pool ctx;
+
     std::unique_ptr<MockWriterState> writerState = std::make_unique<MockWriterState>();
     MockWriterState& writerStateRef = *writerState;
+
+    std::unique_ptr<MockCacheLoadingState> cacheLoadingState = std::make_unique<MockCacheLoadingState>();
+    MockCacheLoadingState& cacheLoadingStateRef = *cacheLoadingState;
+
     testing::StrictMock<testing::MockFunction<void(ClioNode::CUuid, std::shared_ptr<Backend::ClusterData const>)>>
         callbackMock;
     std::binary_semaphore semaphore{0};
@@ -74,7 +80,12 @@ struct ClusterBackendTest : util::prometheus::WithPrometheus, MockBackendTestStr
 TEST_F(ClusterBackendTest, SubscribeToNewState)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -84,6 +95,8 @@ TEST_F(ClusterBackendTest, SubscribeToNewState)
         .WillRepeatedly(testing::Return(BackendInterface::ClioNodesDataFetchResult{}));
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([this](ClioNode::CUuid selfId, std::shared_ptr<Backend::ClusterData const> clusterData) {
@@ -94,6 +107,8 @@ TEST_F(ClusterBackendTest, SubscribeToNewState)
             EXPECT_EQ(nodeData.uuid, selfId);
             EXPECT_EQ(nodeData.dbRole, ClioNode::DbRole::ReadOnly);
             EXPECT_LE(nodeData.updateTime, std::chrono::system_clock::now());
+            EXPECT_FALSE(nodeData.isLoadingCache);
+            EXPECT_TRUE(nodeData.hasLoadedCache);
         });
 
     clusterBackend.run();
@@ -103,7 +118,12 @@ TEST_F(ClusterBackendTest, SubscribeToNewState)
 TEST_F(ClusterBackendTest, Stop)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     EXPECT_CALL(*backend_, fetchClioNodesData)
@@ -111,6 +131,8 @@ TEST_F(ClusterBackendTest, Stop)
         .WillRepeatedly(testing::Return(BackendInterface::ClioNodesDataFetchResult{}));
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
 
     clusterBackend.run();
     std::this_thread::sleep_for(std::chrono::milliseconds{20});
@@ -124,7 +146,12 @@ TEST_F(ClusterBackendTest, Stop)
 TEST_F(ClusterBackendTest, FetchClioNodesDataThrowsException)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -134,6 +161,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataThrowsException)
         .WillRepeatedly(testing::Throw(std::runtime_error("Database connection failed")));
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([this](ClioNode::CUuid, std::shared_ptr<Backend::ClusterData const> clusterData) {
@@ -149,7 +178,12 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataThrowsException)
 TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsDataWithOtherNodes)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -173,6 +207,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsDataWithOtherNodes)
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
     EXPECT_CALL(writerStateRef, isFallback).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
     EXPECT_CALL(writerStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(writerStateRef, isWriting).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
@@ -207,7 +243,12 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsDataWithOtherNodes)
 TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsOnlySelfData)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -224,6 +265,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsOnlySelfData)
     });
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([this](ClioNode::CUuid selfId, std::shared_ptr<Backend::ClusterData const> clusterData) {
@@ -234,6 +277,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsOnlySelfData)
             EXPECT_EQ(nodeData.uuid, selfId);
             EXPECT_EQ(nodeData.dbRole, ClioNode::DbRole::ReadOnly);
             EXPECT_LE(nodeData.updateTime, std::chrono::system_clock::now());
+            EXPECT_FALSE(nodeData.isLoadingCache);
+            EXPECT_TRUE(nodeData.hasLoadedCache);
         });
 
     clusterBackend.run();
@@ -243,7 +288,12 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsOnlySelfData)
 TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsInvalidJson)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -262,6 +312,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsInvalidJson)
         );
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([this, invalidJson](ClioNode::CUuid, std::shared_ptr<Backend::ClusterData const> clusterData) {
@@ -278,7 +330,12 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsInvalidJson)
 TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsValidJsonButCannotConvertToClioNode)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     clusterBackend.subscribeToNewState(callbackMock.AsStdFunction());
@@ -300,6 +357,8 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsValidJsonButCannotConvertToC
         );
     EXPECT_CALL(*backend_, writeNodeMessage).Times(testing::AtLeast(1));
     EXPECT_CALL(writerStateRef, isReadOnly).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(callbackMock, Call)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([this](ClioNode::CUuid, std::shared_ptr<Backend::ClusterData const> clusterData) {
@@ -315,7 +374,12 @@ TEST_F(ClusterBackendTest, FetchClioNodesDataReturnsValidJsonButCannotConvertToC
 TEST_F(ClusterBackendTest, WriteNodeMessageWritesSelfDataWithRecentTimestampAndDbRole)
 {
     Backend clusterBackend{
-        ctx, backend_, std::move(writerState), std::chrono::milliseconds(1), std::chrono::milliseconds(1)
+        ctx,
+        backend_,
+        std::move(writerState),
+        std::move(cacheLoadingState),
+        std::chrono::milliseconds(1),
+        std::chrono::milliseconds(1)
     };
 
     auto const beforeRun = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
@@ -327,6 +391,8 @@ TEST_F(ClusterBackendTest, WriteNodeMessageWritesSelfDataWithRecentTimestampAndD
     EXPECT_CALL(writerStateRef, isFallback).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
     EXPECT_CALL(writerStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(writerStateRef, isWriting).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, isLoadingCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(false));
+    EXPECT_CALL(cacheLoadingStateRef, hasLoadedCache).Times(testing::AtLeast(1)).WillRepeatedly(testing::Return(true));
     EXPECT_CALL(*backend_, writeNodeMessage)
         .Times(testing::AtLeast(1))
         .WillRepeatedly([&](boost::uuids::uuid const& uuid, std::string message) {
@@ -340,6 +406,8 @@ TEST_F(ClusterBackendTest, WriteNodeMessageWritesSelfDataWithRecentTimestampAndD
             EXPECT_EQ(node->dbRole, ClioNode::DbRole::NotWriter);
             EXPECT_GE(node->updateTime, beforeRun);
             EXPECT_LE(node->updateTime, afterWrite);
+            EXPECT_FALSE(node->isLoadingCache);
+            EXPECT_TRUE(node->hasLoadedCache);
         });
 
     clusterBackend.run();

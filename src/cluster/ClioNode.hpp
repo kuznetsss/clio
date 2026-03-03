@@ -45,7 +45,7 @@ struct ClioNode {
      *
      * Roles are used to coordinate which node writes to the database:
      * - ReadOnly: Node is configured to never write (strict read-only mode)
-     * - NotLoadedCache
+     * - NotLoadedCache: Node has not yet finished loading its cache and cannot write
      * - NotWriter: Node can write but is currently not the designated writer
      * - Writer: Node is actively writing to the database
      * - Fallback: Node is using the fallback writer decision mechanism
@@ -61,16 +61,17 @@ struct ClioNode {
 
     Uuid uuid;                                         ///< The UUID of the node.
     std::chrono::system_clock::time_point updateTime;  ///< The time the data about the node was last updated.
-    DbRole dbRole;                                     ///< The database role of the node
-    bool isLoadingCache;
-    bool hasLoadedCache;
+    DbRole dbRole;       ///< The database role of the node.
+    bool isLoadingCache; ///< Whether the node is currently loading its cache.
+    bool hasLoadedCache; ///< Whether the node has finished loading its cache after startup.
 
     /**
-     * @brief Create a ClioNode from writer state.
+     * @brief Create a ClioNode from writer and cache loading state.
      *
      * @param uuid The UUID of the node
-     * @param writerState The writer state to determine the node's database role
-     * @return A ClioNode with the current time and role derived from writerState
+     * @param writerState The writer state used to determine the node's database role
+     * @param cacheLoadingState The cache loading state used to populate isLoadingCache and hasLoadedCache
+     * @return A ClioNode with the current time, role derived from writerState, and cache fields from cacheLoadingState
      */
     static ClioNode
     from(Uuid uuid, etl::WriterStateInterface const& writerState, etl::CacheLoadingStateInterface const& cacheLoadingState);

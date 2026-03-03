@@ -1,7 +1,8 @@
 add_library(clio_etl)
 
 target_sources(clio_etl
-               PRIVATE CacheLoaderSettings.cpp
+               PRIVATE CacheLoadingState.cpp
+                       CacheLoaderSettings.cpp
                        ETLHelpers.cpp
                        ETLService.cpp
                        ETLState.cpp

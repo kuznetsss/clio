@@ -59,6 +59,7 @@ public:
      *
      * @param backend The backend to use for communication.
      * @param writerState The state showing whether clio is writing to the database.
+     * @param cacheLoadingState The state managing whether cache loading is permitted.
      * @param readInterval The interval to read messages from the cluster.
      * @param writeInterval The interval to write messages to the cluster.
      */
@@ -91,6 +92,18 @@ public:
     void
     stop();
 
+    /**
+     * @brief Factory method to construct a ClusterCommunicationService from configuration.
+     *
+     * Creates WriterState and CacheLoadingState from the provided systemState and applies
+     * configuration (e.g., cache.limit_load_in_cluster) to decide whether cache loading is
+     * immediately allowed or must wait for cluster coordination.
+     *
+     * @param config The Clio configuration definition
+     * @param backend The backend to use for cluster communication
+     * @param systemState The shared ETL system state
+     * @return A fully constructed ClusterCommunicationService
+     */
     static ClusterCommunicationService
     make(
         util::config::ClioConfigDefinition const& config,

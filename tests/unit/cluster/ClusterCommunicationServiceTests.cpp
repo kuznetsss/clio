@@ -21,6 +21,7 @@
 #include "cluster/ClusterCommunicationService.hpp"
 #include "data/BackendInterface.hpp"
 #include "util/MockBackendTestFixture.hpp"
+#include "util/MockCacheLoadingState.hpp"
 #include "util/MockPrometheus.hpp"
 #include "util/MockWriterState.hpp"
 #include "util/prometheus/Prometheus.hpp"
@@ -49,6 +50,9 @@ struct ClusterCommunicationServiceTest : util::prometheus::WithPrometheus, MockB
     std::unique_ptr<NiceMockWriterState> writerState = std::make_unique<NiceMockWriterState>();
     NiceMockWriterState& writerStateRef = *writerState;
 
+    std::unique_ptr<NiceMockCacheLoadingState> cacheLoadingState = std::make_unique<NiceMockCacheLoadingState>();
+    NiceMockCacheLoadingState& cacheLoadingStateRef = *cacheLoadingState;
+
     static constexpr std::chrono::milliseconds kSHORT_INTERVAL{1};
 
     static boost::uuids::uuid
@@ -65,7 +69,9 @@ struct ClusterCommunicationServiceTest : util::prometheus::WithPrometheus, MockB
         return ClioNode{
             .uuid = std::make_shared<boost::uuids::uuid>(uuid),
             .updateTime = std::chrono::system_clock::now(),
-            .dbRole = role
+            .dbRole = role,
+            .isLoadingCache = false,
+            .hasLoadedCache = true
         };
     }
 
@@ -86,6 +92,15 @@ struct ClusterCommunicationServiceTest : util::prometheus::WithPrometheus, MockB
         }));
         ON_CALL(writerStateRef, isReadOnly()).WillByDefault(testing::Return(false));
         ON_CALL(writerStateRef, isWriting()).WillByDefault(testing::Return(true));
+
+        ON_CALL(cacheLoadingStateRef, clone()).WillByDefault(testing::Invoke([]() {
+            auto state = std::make_unique<NiceMockCacheLoadingState>();
+            ON_CALL(*state, isLoadingCache()).WillByDefault(testing::Return(false));
+            ON_CALL(*state, hasLoadedCache()).WillByDefault(testing::Return(true));
+            return state;
+        }));
+        ON_CALL(cacheLoadingStateRef, isLoadingCache()).WillByDefault(testing::Return(false));
+        ON_CALL(cacheLoadingStateRef, hasLoadedCache()).WillByDefault(testing::Return(true));
     }
 
     static bool
@@ -112,7 +127,9 @@ TEST_F(ClusterCommunicationServiceTest, BackendReadsAndWritesData)
 
     ON_CALL(*backend_, writeNodeMessage).WillByDefault(testing::Invoke([&](auto, auto) { writeSemaphore.release(); }));
 
-    ClusterCommunicationService service{backend_, std::move(writerState), kSHORT_INTERVAL, kSHORT_INTERVAL};
+    ClusterCommunicationService service{
+        backend_, std::move(writerState), std::move(cacheLoadingState), kSHORT_INTERVAL, kSHORT_INTERVAL
+    };
 
     service.run();
 
@@ -143,7 +160,9 @@ TEST_F(ClusterCommunicationServiceTest, MetricsGetsNewStateFromBackend)
     auto& nodesInClusterMetric = PrometheusService::gaugeInt("cluster_nodes_total_number", {});
     auto isHealthyMetric = PrometheusService::boolMetric("cluster_communication_is_healthy", {});
 
-    ClusterCommunicationService service{backend_, std::move(writerState), kSHORT_INTERVAL, kSHORT_INTERVAL};
+    ClusterCommunicationService service{
+        backend_, std::move(writerState), std::move(cacheLoadingState), kSHORT_INTERVAL, kSHORT_INTERVAL
+    };
 
     service.run();
 
@@ -180,7 +199,9 @@ TEST_F(ClusterCommunicationServiceTest, WriterDeciderCallsWriterStateMethodsAcco
         return state;
     }));
 
-    ClusterCommunicationService service{backend_, std::move(writerState), kSHORT_INTERVAL, kSHORT_INTERVAL};
+    ClusterCommunicationService service{
+        backend_, std::move(writerState), std::move(cacheLoadingState), kSHORT_INTERVAL, kSHORT_INTERVAL
+    };
 
     service.run();
 
@@ -206,7 +227,9 @@ TEST_F(ClusterCommunicationServiceTest, StopHaltsBackendOperations)
         backendOperationsCount++;
     }));
 
-    ClusterCommunicationService service{backend_, std::move(writerState), kSHORT_INTERVAL, kSHORT_INTERVAL};
+    ClusterCommunicationService service{
+        backend_, std::move(writerState), std::move(cacheLoadingState), kSHORT_INTERVAL, kSHORT_INTERVAL
+    };
 
     service.run();
     EXPECT_TRUE(waitForSignal(fetchSemaphore));
