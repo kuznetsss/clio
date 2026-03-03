@@ -74,11 +74,18 @@ struct SystemState {
         "Whether the process is writing to the database"
     );
 
-    /** @brief Whether the process is still loading cache after startup. */
+    /** @brief Whether the process has already loaded cache after startup. */
     util::prometheus::Bool hasLoadedCache = PrometheusService::boolMetric(
         "etl_has_loaded_cache",
         util::prometheus::Labels{},
         "Whether etl has already loaded cache after clio startup"
+    );
+
+    /** @brief Whether the process is currently loading cache after startup. */
+    util::prometheus::Bool isLoadingCache = PrometheusService::boolMetric(
+        "etl_is_loading_cache",
+        util::prometheus::Labels{},
+        "Whether etl is currently loading cache after clio startup"
     );
 
     /**

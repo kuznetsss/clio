@@ -19,6 +19,12 @@
 
 #pragma once
 
+#include "etl/SystemState.hpp"
+
+#include <atomic>
+#include <memory>
+#include <utility>
+
 namespace etl {
 
 class CacheLoadingStateInterface {
@@ -33,6 +39,44 @@ public:
 
     virtual void
     waitForAllowedCacheLoading() const = 0;
+
+    virtual void
+    allowCacheLoading() = 0;
+};
+
+class CacheLoadingState {
+    std::atomic_bool loadingAllowed_{false};
+    std::shared_ptr<SystemState const> state_;
+
+public:
+    explicit CacheLoadingState(std::shared_ptr<SystemState> state) : state_(std::move(state))
+    {
+    }
+
+    bool
+    hasLoadedCache() const
+    {
+        return state_->hasLoadedCache;
+    }
+
+    bool
+    isLoadingCache() const
+    {
+        return state_->isLoadingCache;
+    }
+
+    void
+    waitForAllowedCacheLoading() const
+    {
+        loadingAllowed_.wait(false);
+    }
+
+    void
+    allowCacheLoading()
+    {
+        loadingAllowed_ = true;
+        loadingAllowed_.notify_all();
+    }
 };
 
 }  // namespace etl
