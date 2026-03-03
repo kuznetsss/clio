@@ -21,12 +21,21 @@
 
 #include "etl/SystemState.hpp"
 
+#include <atomic>
 #include <memory>
 #include <utility>
 
 namespace etl {
 
 CacheLoadingState::CacheLoadingState(std::shared_ptr<SystemState const> state) : state_(std::move(state))
+{
+}
+
+CacheLoadingState::CacheLoadingState(
+    std::shared_ptr<SystemState const> state,
+    std::shared_ptr<std::atomic_bool> loadingAllowed
+)
+    : loadingAllowed_(std::move(loadingAllowed)), state_(std::move(state))
 {
 }
 
@@ -58,7 +67,9 @@ CacheLoadingState::allowCacheLoading()
 std::unique_ptr<CacheLoadingStateInterface>
 CacheLoadingState::clone() const
 {
-    return std::make_unique<CacheLoadingState>(state_);
+    CacheLoadingState clone{state_, loadingAllowed_};
+    // Can't call private constructor by make_unique
+    return std::make_unique<CacheLoadingState>(std::move(clone));
 }
 
 }  // namespace etl

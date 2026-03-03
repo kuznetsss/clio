@@ -96,6 +96,8 @@ class CacheLoadingState : public CacheLoadingStateInterface {
     std::shared_ptr<std::atomic_bool> loadingAllowed_ = std::make_shared<std::atomic_bool>(false);
     std::shared_ptr<SystemState const> state_;
 
+    CacheLoadingState(std::shared_ptr<SystemState const> state, std::shared_ptr<std::atomic_bool> loadingAllowed);
+
 public:
     /**
      * @brief Construct a CacheLoadingState with the given system state.
@@ -135,10 +137,11 @@ public:
     allowCacheLoading() override;
 
     /**
-     * @brief Create a clone sharing the same system state.
+     * @brief Create a clone sharing the same system state and loadingAllowed flag.
      *
-     * The clone shares the same SystemState but has its own loadingAllowed flag,
-     * so allowing on the original does not unblock a clone's wait.
+     * The clone shares both the same SystemState and the same loadingAllowed flag,
+     * so calling allowCacheLoading() on any instance (original or clone) unblocks
+     * all threads waiting on any instance that shares the flag.
      *
      * @return A unique pointer to the cloned state.
      */

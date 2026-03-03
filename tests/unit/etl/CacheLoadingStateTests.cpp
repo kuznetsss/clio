@@ -131,20 +131,33 @@ TEST_F(CacheLoadingStateTest, CloneSharesSystemState)
     EXPECT_TRUE(cloned->hasLoadedCache());
 }
 
-TEST_F(CacheLoadingStateTest, CloneHasIndependentLoadingAllowedFlag)
+TEST_F(CacheLoadingStateTest, CloneSharesLoadingAllowedFlag)
 {
     auto cloned = cacheLoadingState.clone();
 
-    // Allow on the original should NOT unblock the clone's wait
-    cacheLoadingState.allowCacheLoading();
-
-    // Clone still has its own loadingAllowed_ set to false
-    EXPECT_FALSE(cloned->clone()->isLoadingCache());  // Just verifies clone is functional
-
-    // Allow on the clone and verify it unblocks the clone's wait
+    // Allow on the original should also unblock the clone's wait
     std::binary_semaphore finished{0};
     std::thread waiter([&]() {
         cloned->waitForAllowedCacheLoading();
+        finished.release();
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    EXPECT_FALSE(finished.try_acquire_for(std::chrono::milliseconds{0}));
+
+    cacheLoadingState.allowCacheLoading();
+
+    EXPECT_TRUE(finished.try_acquire_for(std::chrono::milliseconds{1000}));
+    waiter.join();
+}
+
+TEST_F(CacheLoadingStateTest, AllowOnCloneUnblocksOriginalWait)
+{
+    auto cloned = cacheLoadingState.clone();
+
+    std::binary_semaphore finished{0};
+    std::thread waiter([&]() {
+        cacheLoadingState.waitForAllowedCacheLoading();
         finished.release();
     });
 
