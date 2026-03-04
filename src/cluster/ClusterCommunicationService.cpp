@@ -41,6 +41,7 @@ ClusterCommunicationService::ClusterCommunicationService(
 )
     : backend_(ctx_, std::move(backend), writerState->clone(), cacheLoadingState->clone(), readInterval, writeInterval)
     , writerDecider_(ctx_, std::move(writerState))
+    , cacheLoadingDecider_(ctx_, std::move(cacheLoadingState))
 {
 }
 
@@ -52,6 +53,9 @@ ClusterCommunicationService::run()
     });
     backend_.subscribeToNewState([this](auto&&... args) {
         writerDecider_.onNewState(std::forward<decltype(args)>(args)...);
+    });
+    backend_.subscribeToNewState([this](auto&&... args) {
+        cacheLoadingDecider_.onNewState(std::forward<decltype(args)>(args)...);
     });
     backend_.run();
 }
@@ -67,7 +71,7 @@ ClusterCommunicationService::stop()
     backend_.stop();
 }
 
-ClusterCommunicationService
+ClusterCommunicationService::MakeResult
 ClusterCommunicationService::make(
     util::config::ClioConfigDefinition const& config,
     std::shared_ptr<data::BackendInterface> backend,
@@ -76,11 +80,14 @@ ClusterCommunicationService::make(
 {
     auto writerState = std::make_unique<etl::WriterState>(systemState);
     auto cacheLoadingState = std::make_unique<etl::CacheLoadingState>(std::move(systemState));
-    if (config.get<bool>("cache.limit_load_in_cluster")) {
+    if (not config.get<bool>("cache.limit_load_in_cluster")) {
         cacheLoadingState->allowCacheLoading();
     }
-
-    return ClusterCommunicationService{std::move(backend), std::move(writerState), std::move(cacheLoadingState)};
+    auto cacheLoadingStateForCaller = cacheLoadingState->clone();
+    auto service = std::make_unique<ClusterCommunicationService>(
+        std::move(backend), std::move(writerState), std::move(cacheLoadingState)
+    );
+    return MakeResult{.service = std::move(service), .cacheLoadingState = std::move(cacheLoadingStateForCaller)};
 }
 
 }  // namespace cluster

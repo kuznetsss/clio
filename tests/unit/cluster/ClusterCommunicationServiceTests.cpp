@@ -20,13 +20,18 @@
 #include "cluster/ClioNode.hpp"
 #include "cluster/ClusterCommunicationService.hpp"
 #include "data/BackendInterface.hpp"
+#include "etl/SystemState.hpp"
 #include "util/MockBackendTestFixture.hpp"
 #include "util/MockCacheLoadingState.hpp"
 #include "util/MockPrometheus.hpp"
 #include "util/MockWriterState.hpp"
+#include "util/config/ConfigDefinition.hpp"
+#include "util/config/ConfigValue.hpp"
+#include "util/config/Types.hpp"
 #include "util/prometheus/Prometheus.hpp"
 
 #include <boost/json/object.hpp>
+#include <boost/json/parse.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/json/value_from.hpp>
 #include <boost/uuid/uuid.hpp>
@@ -72,6 +77,18 @@ struct ClusterCommunicationServiceTest : util::prometheus::WithPrometheus, MockB
             .dbRole = role,
             .isLoadingCache = false,
             .hasLoadedCache = true
+        };
+    }
+
+    static ClioNode
+    makeNode(boost::uuids::uuid const& uuid, ClioNode::DbRole role, bool isLoadingCache, bool hasLoadedCache)
+    {
+        return ClioNode{
+            .uuid = std::make_shared<boost::uuids::uuid>(uuid),
+            .updateTime = std::chrono::system_clock::now(),
+            .dbRole = role,
+            .isLoadingCache = isLoadingCache,
+            .hasLoadedCache = hasLoadedCache
         };
     }
 
@@ -239,3 +256,85 @@ TEST_F(ClusterCommunicationServiceTest, StopHaltsBackendOperations)
     std::this_thread::sleep_for(std::chrono::milliseconds{50});
     EXPECT_EQ(backendOperationsCount.load(), countAfterStop);
 }
+
+TEST_F(ClusterCommunicationServiceTest, CacheLoadingDeciderCallsCacheLoadingStateMethodsAccordingly)
+{
+    // Use the largest possible UUID for the other node so self's random UUID is reliably smaller,
+    // making self first in the sorted not-loaded list and triggering allowCacheLoading().
+    auto const largerUuid = makeUuid(0xFF);
+    std::binary_semaphore allowLoadingSemaphore{0};
+
+    BackendInterface::ClioNodesDataFetchResult fetchResult{std::vector<std::pair<boost::uuids::uuid, std::string>>{
+        {largerUuid, nodeToJson(makeNode(largerUuid, ClioNode::DbRole::NotWriter, false, false))}
+    }};
+
+    ON_CALL(*backend_, fetchClioNodesData).WillByDefault(testing::Invoke([&](auto) { return fetchResult; }));
+    ON_CALL(*backend_, writeNodeMessage).WillByDefault(testing::Return());
+
+    // Self must appear as not-yet-loaded in the cluster data, so the Backend's clone must report
+    // hasLoadedCache() = false when building self's ClioNode entry.
+    ON_CALL(cacheLoadingStateRef, clone()).WillByDefault(testing::Invoke([&]() {
+        auto state = std::make_unique<NiceMockCacheLoadingState>();
+        ON_CALL(*state, hasLoadedCache()).WillByDefault(testing::Return(false));
+        ON_CALL(*state, isLoadingCache()).WillByDefault(testing::Return(false));
+        ON_CALL(*state, allowCacheLoading()).WillByDefault(testing::Invoke([&]() { allowLoadingSemaphore.release(); }));
+        return state;
+    }));
+
+    ClusterCommunicationService service{
+        backend_, std::move(writerState), std::move(cacheLoadingState), kSHORT_INTERVAL, kSHORT_INTERVAL
+    };
+
+    service.run();
+    EXPECT_TRUE(waitForSignal(allowLoadingSemaphore));
+    service.stop();
+}
+
+// Tests for ClusterCommunicationService::make() factory using real WriterState and CacheLoadingState.
+
+struct ClusterCommunicationServiceMakeTestParams {
+    std::string testName;
+    bool limitLoadInCluster;
+    bool expectedIsLoadingAllowed;
+};
+
+struct ClusterCommunicationServiceMakeTest
+    : util::prometheus::WithPrometheus
+    , MockBackendTest
+    , testing::WithParamInterface<ClusterCommunicationServiceMakeTestParams> {
+    std::shared_ptr<etl::SystemState> systemState = std::make_shared<etl::SystemState>();
+
+    static util::config::ClioConfigDefinition
+    makeConfig(bool limitLoadInCluster)
+    {
+        return util::config::ClioConfigDefinition{
+            {"cache.limit_load_in_cluster",
+             util::config::ConfigValue{util::config::ConfigType::Boolean}.defaultValue(limitLoadInCluster)}
+        };
+    }
+};
+
+TEST_P(ClusterCommunicationServiceMakeTest, IsLoadingAllowedMatchesConfig)
+{
+    auto const& params = GetParam();
+    auto result = ClusterCommunicationService::make(makeConfig(params.limitLoadInCluster), backend_, systemState);
+    EXPECT_EQ(result.cacheLoadingState->isLoadingAllowed(), params.expectedIsLoadingAllowed);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ClusterCommunicationServiceMakeTests,
+    ClusterCommunicationServiceMakeTest,
+    testing::Values(
+        ClusterCommunicationServiceMakeTestParams{
+            .testName = "LimitLoadFalseAllowsImmediately",
+            .limitLoadInCluster = false,
+            .expectedIsLoadingAllowed = true
+        },
+        ClusterCommunicationServiceMakeTestParams{
+            .testName = "LimitLoadTrueDoesNotAllowImmediately",
+            .limitLoadInCluster = true,
+            .expectedIsLoadingAllowed = false
+        }
+    ),
+    [](testing::TestParamInfo<ClusterCommunicationServiceMakeTestParams> const& info) { return info.param.testName; }
+);

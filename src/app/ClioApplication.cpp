@@ -30,7 +30,6 @@
 #include "etl/LoadBalancer.hpp"
 #include "etl/NetworkValidatedLedgers.hpp"
 #include "etl/SystemState.hpp"
-#include "etl/WriterState.hpp"
 #include "feed/SubscriptionManager.hpp"
 #include "migration/MigrationInspectorFactory.hpp"
 #include "rpc/Counters.hpp"
@@ -125,8 +124,9 @@ ClioApplication::run(bool const useNgWebServer)
 
     auto systemState = etl::SystemState::makeSystemState(config_);
 
-    auto clusterCommunicationService = cluster::ClusterCommunicationService::make(config_, backend, systemState);
-    clusterCommunicationService.run();
+    auto [clusterCommunicationService, cacheLoadingState] =
+        cluster::ClusterCommunicationService::make(config_, backend, systemState);
+    clusterCommunicationService->run();
 
     auto const amendmentCenter = std::make_shared<data::AmendmentCenter const>(backend);
 
@@ -210,7 +210,7 @@ ClioApplication::run(bool const useNgWebServer)
                 *subscriptions,
                 *backend,
                 cacheSaver,
-                clusterCommunicationService,
+                *clusterCommunicationService,
                 ioc
             )
         );
@@ -229,7 +229,7 @@ ClioApplication::run(bool const useNgWebServer)
     auto const httpServer = web::makeHttpServer(config_, ioc, dosGuard, handler, cache);
     appStopper_.setOnStop(
         Stopper::makeOnStopCallback(
-            *httpServer, *balancer, *etl, *subscriptions, *backend, cacheSaver, clusterCommunicationService, ioc
+            *httpServer, *balancer, *etl, *subscriptions, *backend, cacheSaver, *clusterCommunicationService, ioc
         )
     );
 

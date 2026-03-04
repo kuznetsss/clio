@@ -53,6 +53,17 @@ TEST_F(CacheLoadingStateTest, IsLoadingCacheReturnsSystemStateValue)
     EXPECT_TRUE(cacheLoadingState.isLoadingCache());
 }
 
+TEST_F(CacheLoadingStateTest, IsLoadingAllowedReturnsFalseByDefault)
+{
+    EXPECT_FALSE(cacheLoadingState.isLoadingAllowed());
+}
+
+TEST_F(CacheLoadingStateTest, IsLoadingAllowedReturnsTrueAfterAllowCacheLoading)
+{
+    cacheLoadingState.allowCacheLoading();
+    EXPECT_TRUE(cacheLoadingState.isLoadingAllowed());
+}
+
 TEST_F(CacheLoadingStateTest, WaitReturnsImmediatelyAfterAllowCacheLoading)
 {
     cacheLoadingState.allowCacheLoading();

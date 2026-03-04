@@ -51,6 +51,12 @@ CacheLoadingState::isLoadingCache() const
     return state_->isLoadingCache;
 }
 
+bool
+CacheLoadingState::isLoadingAllowed() const
+{
+    return *loadingAllowed_;
+}
+
 void
 CacheLoadingState::waitForAllowedCacheLoading() const
 {

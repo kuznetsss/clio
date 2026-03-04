@@ -28,6 +28,7 @@
 struct MockCacheLoadingStateBase : public etl::CacheLoadingStateInterface {
     MOCK_METHOD(bool, hasLoadedCache, (), (const, override));
     MOCK_METHOD(bool, isLoadingCache, (), (const, override));
+    MOCK_METHOD(bool, isLoadingAllowed, (), (const, override));
     MOCK_METHOD(void, waitForAllowedCacheLoading, (), (const, override));
     MOCK_METHOD(void, allowCacheLoading, (), (override));
     MOCK_METHOD(std::unique_ptr<etl::CacheLoadingStateInterface>, clone, (), (const, override));

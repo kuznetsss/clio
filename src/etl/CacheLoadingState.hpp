@@ -52,6 +52,13 @@ public:
     isLoadingCache() const = 0;
 
     /**
+     * @brief Check if cache loading is currently permitted.
+     * @return true if allowCacheLoading() has been called, false otherwise
+     */
+    [[nodiscard]] virtual bool
+    isLoadingAllowed() const = 0;
+
+    /**
      * @brief Block until cache loading is permitted.
      *
      * Waits until allowCacheLoading() has been called, then returns.
@@ -118,6 +125,13 @@ public:
      */
     [[nodiscard]] bool
     isLoadingCache() const override;
+
+    /**
+     * @brief Check if cache loading is currently permitted.
+     * @return true if allowCacheLoading() has been called, false otherwise
+     */
+    [[nodiscard]] bool
+    isLoadingAllowed() const override;
 
     /**
      * @brief Block until cache loading is permitted.

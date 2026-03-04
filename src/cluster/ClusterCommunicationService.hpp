@@ -20,6 +20,7 @@
 #pragma once
 
 #include "cluster/Backend.hpp"
+#include "cluster/CacheLoadingDecider.hpp"
 #include "cluster/Concepts.hpp"
 #include "cluster/Metrics.hpp"
 #include "cluster/WriterDecider.hpp"
@@ -49,6 +50,7 @@ class ClusterCommunicationService : public ClusterCommunicationServiceTag {
     Backend backend_;
     Metrics metrics_;
     WriterDecider writerDecider_;
+    CacheLoadingDecider cacheLoadingDecider_;
 
 public:
     static constexpr std::chrono::milliseconds kDEFAULT_READ_INTERVAL{1000};
@@ -93,6 +95,20 @@ public:
     stop();
 
     /**
+     * @brief Result of the make() factory method.
+     *
+     * Bundles the constructed service with a CacheLoadingState that the caller
+     * (e.g. ETLService) can use to wait until cache loading is permitted.
+     * The state shares the same loadingAllowed flag as the one held by the service
+     * internally, so allowCacheLoading() called by CacheLoadingDecider will unblock
+     * any thread waiting on cacheLoadingState->waitForAllowedCacheLoading().
+     */
+    struct MakeResult {
+        std::unique_ptr<ClusterCommunicationService> service;
+        std::unique_ptr<etl::CacheLoadingStateInterface> cacheLoadingState;
+    };
+
+    /**
      * @brief Factory method to construct a ClusterCommunicationService from configuration.
      *
      * Creates WriterState and CacheLoadingState from the provided systemState and applies
@@ -102,9 +118,9 @@ public:
      * @param config The Clio configuration definition
      * @param backend The backend to use for cluster communication
      * @param systemState The shared ETL system state
-     * @return A fully constructed ClusterCommunicationService
+     * @return A MakeResult containing the service and a CacheLoadingState for the caller
      */
-    static ClusterCommunicationService
+    static MakeResult
     make(
         util::config::ClioConfigDefinition const& config,
         std::shared_ptr<data::BackendInterface> backend,
